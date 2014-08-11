@@ -58,7 +58,7 @@ struct LCDAction  {
 
 struct pin {
 	GPIO_TypeDef* gpio;
-	unsigned char pinNumber;
+	unsigned short pinNumber;
 };
 
 class LiquidCrystal {

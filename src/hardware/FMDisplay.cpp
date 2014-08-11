@@ -1049,10 +1049,10 @@ void FMDisplay::midiClock(bool show) {
     }
     if (show) {
         if (synthState->fullState.midiConfigValue[MIDICONFIG_LED_CLOCK] == 1) {
-            GPIO_SetBits(GPIOB, GPIO_Pin_6);
+            GPIO_SetBits(GPIOD, GPIO_Pin_13);
         }
     } else {
-        GPIO_ResetBits(GPIOB, GPIO_Pin_6);
+        GPIO_ResetBits(GPIOD, GPIO_Pin_13);
     }
 }
 

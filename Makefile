@@ -48,6 +48,8 @@ SRC_FIRMWARE = src/PreenFM.cpp \
 	src/library/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_rcc.c \
 	src/library/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_usart.c \
 	src/library/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_spi.c \
+	src/library/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_dma.c \
+	src/library/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_i2c.c \
 	src/library/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_rng.c \
 	src/library/STM32F4xx_StdPeriph_Driver/src/misc.c \
 	src/library/STM32_USB_OTG_Driver/src/usb_dcd.c \

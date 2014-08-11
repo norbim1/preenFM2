@@ -47,6 +47,7 @@ UsbKey             usbKey ;
 Hexter             hexter;
 
 
+
 int spiState  __attribute__ ((section(".ccmnoload")));
 
 void fillSoundBuffer() {
@@ -59,6 +60,7 @@ void fillSoundBuffer() {
 
 const char* line1 = "PreenFM2 v"PFM2_VERSION" "OVERCLOCK_STRING;
 const char* line2 = "     By Xavier Hosxe";
+const char* line3 = "(F4Disc port by NM) ";
 
 
 void setup() {
@@ -75,11 +77,14 @@ void setup() {
     	lcd.print((char)0);
     	lcd.setCursor(r,3);
     	lcd.print((char)0);
+	    for (int i=0; i<100; i++) {
+			PreenFM2_uDelay(50);
+	    }
     }
 
     LED_Config();
 	USART_Config();
-	MCP4922_Config();
+	CS43L22_Start((u32 *)&sample_buffer[0], SAMPLE_BUFFER_SIZE);
 	RNG_Config();
 
 	// Set flush to zero mode...
@@ -137,9 +142,6 @@ void setup() {
     hexter.setArpeggiatorPartOfThePreset(&synthState.fullState.midiConfigValue[MIDICONFIG_ARPEGGIATOR_IN_PRESET]);
     usbKey.loadConfig(synthState.fullState.midiConfigValue);
 
-
-
-    SysTick_Config();
     synth.buildNewSampleBlock();
     synth.buildNewSampleBlock();
 
@@ -150,9 +152,9 @@ void setup() {
     bool displayline1 = true;
     for (int r=0; r<20; r++) {
     	if (r<10 && (r & 0x1) == 0) {
-			GPIO_SetBits(GPIOB, GPIO_Pin_6);
+			GPIO_SetBits(GPIOD, LEDOPIN);
     	} else {
-    		GPIO_ResetBits(GPIOB, GPIO_Pin_6);
+    		GPIO_ResetBits(GPIOD, LEDOPIN);
     	}
 
     	switch (r) {
@@ -204,6 +206,9 @@ void setup() {
         fillSoundBuffer();
 		lcd.setCursor(r,2);
 		lcd.print(line2[r]);
+	    fillSoundBuffer();
+		lcd.setCursor(r,3);
+		lcd.print(line3[r]);
 	    fillSoundBuffer();
     }
 
@@ -279,18 +284,19 @@ void loop(void) {
     fillSoundBuffer();
 
     unsigned int newPreenTimer = preenTimer;
+    static unsigned int ledMicros;
 
-    /*
-    if ((newMicros - ledMicros) > 10000) {
+
+    if ((newPreenTimer - ledMicros) > 10000) {
         if (ledOn) {
-            GPIO_ResetBits(GPIOB, LEDPIN);
+            GPIO_ResetBits(GPIOD, LEDBPIN);
         } else {
-            GPIO_SetBits(GPIOB, LEDPIN);
+            GPIO_SetBits(GPIOD, LEDBPIN);
         }
         ledOn = !ledOn;
-        ledMicros = newMicros;
+        ledMicros = newPreenTimer;
 	}
-	*/
+
 
 
 	// Comment following line for debug....
@@ -298,6 +304,7 @@ void loop(void) {
 
 	// newByte can display visual info
     while (usartBufferIn.getCount() > 0) {
+        GPIO_SetBits(GPIOD, LEDOPIN); // Midi LED on
         fillSoundBuffer();
 		midiDecoder.newByte(usartBufferIn.remove());
 	}
@@ -322,6 +329,7 @@ void loop(void) {
     while (lcd.hasActions()) {
         if (usartBufferIn.getCount() > 20) {
             while (usartBufferIn.getCount() > 0) {
+            	GPIO_SetBits(GPIOD, LEDOPIN); // Midi LED on
                 fillSoundBuffer();
                 midiDecoder.newByte(usartBufferIn.remove());
             }
@@ -329,7 +337,7 @@ void loop(void) {
         LCDAction action = lcd.nextAction();
         lcd.realTimeAction(&action, fillSoundBuffer);
     }
-
+    GPIO_ResetBits(GPIOD, LEDOPIN); // Midi LED off
 }
 
 int main(void) {

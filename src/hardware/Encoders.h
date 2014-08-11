@@ -20,10 +20,49 @@
 
 #include "RingBuffer.h"
 #include "EncodersListener.h"
+#include "stm32f4xx.h"
 
-#define HC165_CLOCK GPIO_Pin_8
-#define HC165_DATA  GPIO_Pin_7
-#define HC165_LOAD  GPIO_Pin_6
+//#define HC165_CLOCK GPIO_Pin_8
+//#define HC165_DATA  GPIO_Pin_7
+//#define HC165_LOAD  GPIO_Pin_15
+
+#define BUTTON0_PIN  GPIO_Pin_10
+#define BUTTON0_PORT GPIOE
+#define BUTTON1_PIN  GPIO_Pin_13
+#define BUTTON1_PORT GPIOC
+#define BUTTON2_PIN  GPIO_Pin_15
+#define BUTTON2_PORT GPIOC
+#define BUTTON3_PIN  GPIO_Pin_1
+#define BUTTON3_PORT GPIOA
+#define BUTTON4_PIN  GPIO_Pin_3
+#define BUTTON4_PORT GPIOA
+#define BUTTON5_PIN  GPIO_Pin_5
+#define BUTTON5_PORT GPIOA
+#define BUTTON6_PIN  GPIO_Pin_5
+#define BUTTON6_PORT GPIOC
+#define BUTTON7_PIN  GPIO_Pin_1
+#define BUTTON7_PORT GPIOB
+
+//#define BUTTON_PORT GPIOE
+
+#define ENC1_0_PIN  GPIO_Pin_1
+#define ENC1_0_PORT GPIOC
+#define ENC1_2_PIN  GPIO_Pin_2
+#define ENC1_2_PORT GPIOC
+#define ENC2_0_PIN  GPIO_Pin_2
+#define ENC2_0_PORT GPIOA
+#define ENC2_2_PIN  GPIO_Pin_4
+#define ENC2_2_PORT GPIOC
+#define ENC3_0_PIN  GPIO_Pin_2
+#define ENC3_0_PORT GPIOE
+#define ENC3_2_PIN  GPIO_Pin_4
+#define ENC3_2_PORT GPIOE
+#define ENC4_0_PIN  GPIO_Pin_6
+#define ENC4_0_PORT GPIOE
+#define ENC4_2_PIN  GPIO_Pin_14
+#define ENC4_2_PORT GPIOC
+
+//#define ENC_PORT GPIOD
 
 #define NUMBER_OF_ENCODERS 4
 #define NUMBER_OF_BUTTONS 8
@@ -89,16 +128,19 @@ public:
 
 private:
 	int action[2][16];
-	int encoderBit1[NUMBER_OF_ENCODERS];
-	int encoderBit2[NUMBER_OF_ENCODERS];
+	unsigned short encoderBit1[NUMBER_OF_ENCODERS];
+	unsigned short encoderBit2[NUMBER_OF_ENCODERS];
+	GPIO_TypeDef* encoderPort1[NUMBER_OF_ENCODERS];
+	GPIO_TypeDef* encoderPort2[NUMBER_OF_ENCODERS];
 	int encoderState[NUMBER_OF_ENCODERS];
 	int timerAction[NUMBER_OF_ENCODERS];
 
 	LastEncoderMove lastMove[NUMBER_OF_ENCODERS];
     int tickSpeed[NUMBER_OF_ENCODERS];
 
-	int buttonBit[NUMBER_OF_BUTTONS];
-	int buttonTimer[NUMBER_OF_BUTTONS];
+    unsigned short buttonBit[NUMBER_OF_BUTTONS];
+    GPIO_TypeDef* buttonPort[NUMBER_OF_BUTTONS];
+    int buttonTimer[NUMBER_OF_BUTTONS];
 	bool buttonUsedFromSomethingElse[NUMBER_OF_BUTTONS];
 	bool buttonPreviousState[NUMBER_OF_BUTTONS];
 	int firstButtonDown;

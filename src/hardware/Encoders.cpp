@@ -27,29 +27,56 @@ extern LiquidCrystal lcd;
 
 Encoders::Encoders() {
 	// PreenFM PCB R4
-    char encoderPins[] = { 12, 14, 1, 13, 2, 8, 3, 7};
-    char buttonPins[] = { 9, 16, 10, 15, 11, 5, 4, 6};
+//    char encoderPins[] = { 12, 14, 1, 13, 2, 8, 3, 7};
+//    char buttonPins[] = { 9, 16, 10, 15, 11, 5, 4, 6};
+//    buttons: ÿ( Eng, Op, Op, Mtx, Lfo, Inst, Menu, Not used )
+
+	unsigned short encoderPins[] = { ENC1_2_PIN, ENC1_0_PIN, ENC2_2_PIN, ENC2_0_PIN, ENC3_2_PIN, ENC3_0_PIN, ENC4_2_PIN, ENC4_0_PIN};
+	GPIO_TypeDef* encoderPorts[] = { ENC1_2_PORT, ENC1_0_PORT, ENC2_2_PORT, ENC2_0_PORT, ENC3_2_PORT, ENC3_0_PORT, ENC4_2_PORT, ENC4_0_PORT};
+	unsigned short buttonPins[] = { BUTTON7_PIN, BUTTON6_PIN, BUTTON5_PIN, BUTTON4_PIN, BUTTON3_PIN, BUTTON2_PIN, BUTTON1_PIN, BUTTON0_PIN};
+	GPIO_TypeDef* buttonPorts[] = { BUTTON7_PORT, BUTTON6_PORT, BUTTON5_PORT, BUTTON4_PORT, BUTTON3_PORT, BUTTON2_PORT, BUTTON1_PORT, BUTTON0_PORT};
+
+//    // GPIOG Periph clock enable
+//	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+//
+//	/* Configure PB5 in output mode */
+//	GPIO_InitTypeDef GPIO_InitStructure;
+//	GPIO_InitStructure.GPIO_Pin = HC165_CLOCK | HC165_LOAD;
+//	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+//	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+//	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+//	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+//	GPIO_Init(GPIOA, &GPIO_InitStructure);
+//
+//	GPIO_InitTypeDef GPIO_InitStructure2;
+//	GPIO_InitStructure2.GPIO_Pin = HC165_DATA;
+//	GPIO_InitStructure2.GPIO_Mode = GPIO_Mode_IN;
+//	GPIO_Init(GPIOA, &GPIO_InitStructure2);
+//
+//
+//	GPIO_ResetBits(GPIOA, HC165_CLOCK);
+//	GPIO_ResetBits(GPIOA, HC165_LOAD);
 
     // GPIOG Periph clock enable
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA|RCC_AHB1Periph_GPIOB|RCC_AHB1Periph_GPIOC|RCC_AHB1Periph_GPIOE, ENABLE);
 
-	/* Configure PB5 in output mode */
 	GPIO_InitTypeDef GPIO_InitStructure;
-	GPIO_InitStructure.GPIO_Pin = HC165_CLOCK | HC165_LOAD;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
 
-	GPIO_InitTypeDef GPIO_InitStructure2;
-	GPIO_InitStructure2.GPIO_Pin = HC165_DATA;
-	GPIO_InitStructure2.GPIO_Mode = GPIO_Mode_IN;
-	GPIO_Init(GPIOA, &GPIO_InitStructure2);
+	for (int k=0; k<NUMBER_OF_BUTTONS; k++) {
+		GPIO_InitStructure.GPIO_Pin = buttonPins[k];
+		GPIO_Init(buttonPorts[k], &GPIO_InitStructure);
+	}
 
+	for (int k=0; k<(NUMBER_OF_ENCODERS*2); k++) {
+		GPIO_InitStructure.GPIO_Pin = encoderPins[k];
+		GPIO_Init(encoderPorts[k], &GPIO_InitStructure);
+	}
 
-	GPIO_ResetBits(GPIOA, HC165_CLOCK);
-	GPIO_ResetBits(GPIOA, HC165_LOAD);
+	//	GPIO_ResetBits(GPIOA, HC165_CLOCK);
+//	GPIO_ResetBits(GPIOA, HC165_LOAD);
 
 	/*
 			0: 0000 = 00
@@ -84,14 +111,17 @@ Encoders::Encoders() {
 
 
 	for (int k=0; k<NUMBER_OF_ENCODERS; k++) {
-		encoderBit1[k] = 1 << (encoderPins[k*2] -1);
-		encoderBit2[k] = 1 << (encoderPins[k*2 + 1] -1);
+		encoderBit1[k] = encoderPins[k*2];//1 << (encoderPins[k*2] -1);
+		encoderBit2[k] = encoderPins[k*2+1];//1 << (encoderPins[k*2 + 1] -1);
+		encoderPort1[k] = encoderPorts[k*2];
+		encoderPort2[k] = encoderPorts[k*2+1];
 		lastMove[k] = LAST_MOVE_NONE;
 		tickSpeed[k] = 1;
 	}
 
 	for (int k=0; k<NUMBER_OF_BUTTONS; k++) {
-		buttonBit[k] = 1 << (buttonPins[k] -1);
+		buttonBit[k] = buttonPins[k];//1 << (buttonPins[k] -1);
+		buttonPort[k] = buttonPorts[k];
 		buttonPreviousState[k] = false;
 		// > 30
 		buttonTimer[k] = 31;
@@ -107,28 +137,28 @@ Encoders::~Encoders() {
 }
 
 
-int Encoders::getRegisterBits() {
-	// Copy the values in the HC165 registers
-	GPIO_ResetBits(GPIOA, HC165_LOAD);
-	GPIO_SetBits(GPIOA, HC165_LOAD);
-
-	// Analyse the new value
-	int registerBits = 0;
-	for(int i=0; i<16; i++) {
-		GPIO_ResetBits(GPIOA, HC165_CLOCK);
-		registerBits |= (GPIO_ReadInputDataBit(GPIOA, HC165_DATA) << i) ;
-		GPIO_SetBits(GPIOA, HC165_CLOCK);
-	}
-	return registerBits;
-}
+//int Encoders::getRegisterBits() {
+//	// Copy the values in the HC165 registers
+//	GPIO_ResetBits(GPIOA, HC165_LOAD);
+//	GPIO_SetBits(GPIOA, HC165_LOAD);
+//
+//	// Analyse the new value
+//	int registerBits = 0;
+//	for(int i=0; i<16; i++) {
+//		GPIO_ResetBits(GPIOA, HC165_CLOCK);
+//		registerBits |= (GPIO_ReadInputDataBit(GPIOA, HC165_DATA) << i) ;
+//		GPIO_SetBits(GPIOA, HC165_CLOCK);
+//	}
+//	return registerBits;
+//}
 
 void Encoders::checkSimpleStatus() {
-	int registerBits = getRegisterBits();
+	//int registerBits = getRegisterBits();
 
 
 	for (int k=0; k<NUMBER_OF_BUTTONS; k++) {
 		// button is pressed ?
-		bool b1 = ((registerBits & buttonBit[k]) == 0);
+		bool b1 = (GPIO_ReadInputDataBit(buttonPort[k], buttonBit[k]) == 0);//((registerBits & buttonBit[k]) == 0);
 		// button is pressed
 		if (b1) {
 			if (buttonTimer[k] > 30) {
@@ -141,14 +171,14 @@ void Encoders::checkSimpleStatus() {
 }
 
 void Encoders::checkStatus(int encoderType) {
-	int registerBits = getRegisterBits();
+	//int registerBits = getRegisterBits();
 
 	// target the right action row.
 	int *actionEnc = action[encoderType];
 
 	for (int k=0; k<NUMBER_OF_ENCODERS; k++) {
-		bool b1 = ((registerBits & encoderBit1[k]) == 0);
-		bool b2 = ((registerBits & encoderBit2[k]) == 0);
+		bool b1 = (GPIO_ReadInputDataBit(encoderPort1[k], encoderBit1[k]) == 0);//((registerBits & encoderBit1[k]) == 0);
+		bool b2 = (GPIO_ReadInputDataBit(encoderPort2[k], encoderBit2[k]) == 0);//((registerBits & encoderBit2[k]) == 0);
 
 		encoderState[k] <<= 2;
 		encoderState[k] &= 0xf;
@@ -186,7 +216,7 @@ void Encoders::checkStatus(int encoderType) {
 	}
 
 	for (int k=0; k<NUMBER_OF_BUTTONS; k++) {
-		bool b1 = ((registerBits & buttonBit[k]) == 0);
+		bool b1 = (GPIO_ReadInputDataBit(buttonPort[k], buttonBit[k]) == 0);//((registerBits & buttonBit[k]) == 0);
 
 		// button is pressed
 		if (b1) {

@@ -19,6 +19,7 @@
 #include "Synth.h"
 #include "Menu.h"
 #include "stm32f4xx_rng.h"
+#include "PreenFM.h"
 
 
 #include "hardware/dwt.h"
@@ -28,7 +29,8 @@ CYCCNT_buffer cycles_rng, cycles_voices1, cycles_voices2, cycles_fx, cycles_timb
 #endif
 
 extern float noise[32];
-float ratiosTimbre[]= { 131072.0f * 1.0f, 131072.0f * 1.0f, 131072.0f *  0.5f, 131072.0f * 0.333f, 131072.0f * 0.25f };
+//float ratiosTimbre[]= { 131072.0f * 1.0f, 131072.0f * 1.0f, 131072.0f *  0.5f, 131072.0f * 0.333f, 131072.0f * 0.25f };
+float ratiosTimbre[]= { 8388608.0f * 1.0f, 8388608.0f * 1.0f, 8388608.0f *  0.5f, 8388608.0f * 0.333f, 8388608.0f * 0.25f };
 
 Synth::Synth(void) {
 }
@@ -143,53 +145,70 @@ void Synth::buildNewSampleBlock() {
     CYCLE_MEASURE_START(cycles_voices2);
     // render all voices in their timbre sample block...
     // 16 voices
+        GPIO_ResetBits(GPIOD, LEDGPIN); // Play LED off
     if (this->voices[0].isPlaying()) {
         this->voices[0].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[1].isPlaying()) {
         this->voices[1].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[2].isPlaying()) {
         this->voices[2].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[3].isPlaying()) {
         this->voices[3].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[4].isPlaying()) {
         this->voices[4].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[5].isPlaying()) {
         this->voices[5].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[6].isPlaying()) {
         this->voices[6].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[7].isPlaying()) {
         this->voices[7].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[8].isPlaying()) {
         this->voices[8].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[9].isPlaying()) {
         this->voices[9].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[10].isPlaying()) {
         this->voices[10].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[11].isPlaying()) {
         this->voices[11].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[12].isPlaying()) {
         this->voices[12].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[13].isPlaying()) {
         this->voices[13].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[14].isPlaying()) {
         this->voices[14].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     if (this->voices[15].isPlaying()) {
         this->voices[15].nextBlock();
+        GPIO_SetBits(GPIOD, LEDGPIN);// Play LED on
     }
     CYCLE_MEASURE_END();
 
@@ -218,12 +237,12 @@ void Synth::buildNewSampleBlock() {
 
     int *cb = &samples[writeCursor];
 
-    float toAdd = 131071.0f;
+    //float toAdd = 131071.0f;
     for (int s = 0; s < 64/4; s++) {
-        *cb++ = (int)((*sampleFromTimbre1++ + *sampleFromTimbre2++ + *sampleFromTimbre3++ + *sampleFromTimbre4++) + toAdd);
-        *cb++ = (int)((*sampleFromTimbre1++ + *sampleFromTimbre2++ + *sampleFromTimbre3++ + *sampleFromTimbre4++) + toAdd);
-        *cb++ = (int)((*sampleFromTimbre1++ + *sampleFromTimbre2++ + *sampleFromTimbre3++ + *sampleFromTimbre4++) + toAdd);
-        *cb++ = (int)((*sampleFromTimbre1++ + *sampleFromTimbre2++ + *sampleFromTimbre3++ + *sampleFromTimbre4++) + toAdd);
+        *cb++ = (int)((*sampleFromTimbre1++ + *sampleFromTimbre2++ + *sampleFromTimbre3++ + *sampleFromTimbre4++));// + toAdd);
+        *cb++ = (int)((*sampleFromTimbre1++ + *sampleFromTimbre2++ + *sampleFromTimbre3++ + *sampleFromTimbre4++));// + toAdd);
+        *cb++ = (int)((*sampleFromTimbre1++ + *sampleFromTimbre2++ + *sampleFromTimbre3++ + *sampleFromTimbre4++));// + toAdd);
+        *cb++ = (int)((*sampleFromTimbre1++ + *sampleFromTimbre2++ + *sampleFromTimbre3++ + *sampleFromTimbre4++));// + toAdd);
     }
 
     CYCLE_MEASURE_END();

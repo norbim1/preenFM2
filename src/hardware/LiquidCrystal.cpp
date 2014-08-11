@@ -36,16 +36,16 @@ inline void delay_ms(unsigned int ms) {
 // By Xavier [ dot ] Hosxe (at) g m a i l [ dot] com
 
 LiquidCrystal::LiquidCrystal() {
-	/* GPIOA clock enable */
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+	/* GPIOE clock enable */
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
 
 	struct pin pins[6]  = {
-		{ GPIOA, GPIO_Pin_0 },
-		{ GPIOA, GPIO_Pin_1 },
-		{ GPIOA, GPIO_Pin_2 },
-		{ GPIOA, GPIO_Pin_3 },
-		{ GPIOA, GPIO_Pin_4 },
-		{ GPIOA, GPIO_Pin_5 }
+		{ GPIOE, GPIO_Pin_8 },
+		{ GPIOE, GPIO_Pin_7 },
+		{ GPIOE, GPIO_Pin_9 },
+		{ GPIOE, GPIO_Pin_11 },
+		{ GPIOE, GPIO_Pin_13 },
+		{ GPIOE, GPIO_Pin_15 }
 	};
 
 	realTimeDisplay = true;
@@ -59,8 +59,6 @@ LiquidCrystal::LiquidCrystal() {
 	_data_pins[1] = pins[3];
 	_data_pins[2] = pins[4];
 	_data_pins[3] = pins[5];
-
-	/* GPIOB clock enable */
 
 
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -83,7 +81,7 @@ void LiquidCrystal::begin(unsigned char cols, unsigned char lines) {
 	// datasheet, we need at least 40ms after power rises above 2.7V
 	// before sending commands. Arduino can turn on way befer 4.5V so
 	// we'll wait 50
-	delay_ms(50);
+	delay_ms(500);
 
 	// Init 4 bits communication
 
@@ -96,16 +94,20 @@ void LiquidCrystal::begin(unsigned char cols, unsigned char lines) {
 	// page 45 figure 23
 
 
-	// Send function set command sequence
-	sendInitCommand(LCD_FUNCTIONSET | LCD_8BITMODE);
-	delay_ms(5); // wait more than 4.1ms
+	// Send LCD reset command sequence
+	sendInitCommand(0x00);
+	sendInitCommand(0x00);
+	sendInitCommand(0x00);
+	sendInitCommand(0x00);
+	sendInitCommand(0x00);
+	//delay_ms(5); // wait more than 4.1ms
 
 	// second try
-	sendInitCommand(LCD_FUNCTIONSET | LCD_8BITMODE);
-	delay_ms(1);
+	//sendInitCommand(LCD_FUNCTIONSET | LCD_8BITMODE);
+	//delay_ms(1);
 
 	// third go
-	sendInitCommand(LCD_FUNCTIONSET | LCD_8BITMODE);
+	//sendInitCommand(LCD_FUNCTIONSET | LCD_8BITMODE);
 	delay_ms(1);
 
 	// And set the 4 bits mode
@@ -121,8 +123,10 @@ void LiquidCrystal::begin(unsigned char cols, unsigned char lines) {
 
 	// finally, set # lines, font size, etc.
 	command(LCD_FUNCTIONSET | _displayfunction );
+	delay_ms(2);
 
 	command(LCD_DISPLAYCONTROL);
+	delay_ms(2);
 
 	// clear
     command(LCD_CLEARDISPLAY); // clear display, set cursor position to zero
@@ -132,6 +136,7 @@ void LiquidCrystal::begin(unsigned char cols, unsigned char lines) {
 	_displaymode = LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT;
 	// set the entry mode
 	command(LCD_ENTRYMODESET | _displaymode);
+	delay_ms(2);
 
 	// turn the display on with no cursor or blinking default
 	_displaycontrol = LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF;

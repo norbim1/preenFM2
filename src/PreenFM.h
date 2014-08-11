@@ -32,7 +32,13 @@
 #define OVERCLOCK_STRING "o"
 #endif
 
-#define LEDPIN GPIO_Pin_6
+#define LEDGPIN GPIO_Pin_12
+#define LEDOPIN GPIO_Pin_13
+#define LEDRPIN GPIO_Pin_14
+#define LEDBPIN GPIO_Pin_15
+
+#define SAMPLE_BUFFER_SIZE 64 // -> 64 L/R (2*32) bit samples
+extern int sample_buffer[SAMPLE_BUFFER_SIZE]; // sample buffer used for DMA
 
 
 extern int spiState ;
@@ -60,8 +66,8 @@ extern Synth synth;
 
 void USART_Config();
 void LED_Config();
-void MCP4922_Config();
-void SysTick_Config();
+void CS43L22_Config();
+void CS43L22_Start(u32 *buffer, u16 len);
 void RNG_Config();
 void LCD_InitChars(LiquidCrystal *lcd);
 

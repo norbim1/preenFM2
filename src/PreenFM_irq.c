@@ -158,57 +158,54 @@ void USART3_IRQHandler(void) {
     }
 }
 
-
-
-void SysTick_Handler(void)
+int SwapHWOrder(int value)
 {
-    static int left  __attribute__ ((section(".ccmnoload")));
-    static int right  __attribute__ ((section(".ccmnoload")));
-
-    // samples are int so no FP operation; this allows Lazy stacking feature
-    // to avoid saving FPU registers
-
-    switch (spiState++) {
-    case 0:
-        // LATCH LOW
-        GPIO_ResetBits(GPIOC, GPIO_Pin_12);
-        // Update timer
-        preenTimer += 1;
-
-        // Read samples...
-        left = synth.leftSampleAtReadCursor();
-        right = synth.rightSampleAtReadCursor();
-        synth.incReadCursor();
-
-        // DAC 1 - MSB
-        GPIO_ResetBits(GPIOB, GPIO_Pin_4);
-        GPIO_SetBits(GPIOB, GPIO_Pin_9);
-        // LATCH HIGH
-        GPIO_SetBits(GPIOC, GPIO_Pin_12);
-        SPI_I2S_SendData(SPI1, 0x3000 | (right >> 6) );
-        break;
-    case 1:
-        // DAC 2 - MSB
-        GPIO_ResetBits(GPIOB, GPIO_Pin_9);
-        GPIO_SetBits(GPIOB, GPIO_Pin_4);
-        SPI_I2S_SendData(SPI1, 0x3000 | (left >> 6));
-        break;
-    case 2:
-        // DAC 1 - LSB
-        GPIO_ResetBits(GPIOB, GPIO_Pin_4);
-        GPIO_SetBits(GPIOB, GPIO_Pin_9);
-        SPI_I2S_SendData(SPI1, 0xb000 | (right & 0x3f));
-        break;
-    case 3:
-        // DAC 2 - LSB
-        GPIO_ResetBits(GPIOB, GPIO_Pin_9);
-        GPIO_SetBits(GPIOB, GPIO_Pin_4);
-        SPI_I2S_SendData(SPI1, 0xb000 | (left & 0x3f));
-        spiState = 0;
-        break;
-    }
+  uint32_t uvalue = (uint32_t)value;
+  uint32_t swapped =
+       ( ((0x0000FFFF) & (uvalue >> 16))
+       | ((0xFFFF0000) & (uvalue << 16)));
+  return (int)swapped;
 }
 
+/////////////////////////////////////////////////////////////////////////////
+//! DMA1 Channel interrupt is triggered on HT and TC interrupts
+//! \note shouldn't be called directly from application
+/////////////////////////////////////////////////////////////////////////////
+void DMA1_Stream5_IRQHandler(void)
+{
+	int state = 0;
+	int i;
+	static int left  __attribute__ ((section(".ccmnoload")));
+	static int right  __attribute__ ((section(".ccmnoload")));
+
+	int *buffer;
+
+	// select buffer half depending on pending flag(s)
+
+	if( DMA1->HISR & DMA_FLAG_HTIF5 ) {
+		DMA1->HIFCR = DMA_FLAG_HTIF5;
+		// lower sample buffer range has been transferred and can be updated
+		buffer = (int *)&sample_buffer[0];  //state=0;
+	}
+
+	if( DMA1->HISR & DMA_FLAG_TCIF5 ) {
+		DMA1->HIFCR = DMA_FLAG_TCIF5;
+		// upper sample buffer range has been transferred and can be updated
+		buffer = (int *)&sample_buffer[(SAMPLE_BUFFER_SIZE/2)];  //state=1;
+	}
+
+	// point at either 0 or the upper half of buffer
+
+	for(i=0; i<(SAMPLE_BUFFER_SIZE); i+=4) // Fill half the sample buffer
+	{
+		preenTimer += 1;
+		left = synth.leftSampleAtReadCursor();
+		right = synth.rightSampleAtReadCursor();
+		synth.incReadCursor();
+		*buffer++ = SwapHWOrder(left * 0x100); // 32 bit L write into buffer
+		*buffer++ = SwapHWOrder(right* 0x100); // 32 bit R write into buffer
+	}
+}
 
 #ifdef USE_USB_OTG_HS
 void OTG_HS_IRQHandler(void) {
