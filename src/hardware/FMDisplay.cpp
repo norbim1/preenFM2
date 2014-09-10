@@ -30,6 +30,9 @@ const char* stepChars  = "_123456789ABCDEF";
 
 unsigned int screenSaverGoal[] = { 2*60 * TMP_FLOAT, 5*60*TMP_FLOAT, 10*60*TMP_FLOAT, 60*60*TMP_FLOAT };
 
+const char* enveloppeRandomizer [] = { "keep", "perc", "pad ", "rand" };
+const char* otherRandomizer [] = { "keep", "soft", "medi", "high" };
+
 
 FMDisplay::FMDisplay() {
 }
@@ -874,6 +877,10 @@ void FMDisplay::newMenuState(FullState* fullState) {
         lcd->setCursor(1, menuRow);
         lcd->print("Send Patch ?");
         break;
+    case MENU_LOAD_RANDOMIZER:
+        lcd->setCursor(1, menuRow);
+        lcd->print("Oper Enve IMs  Modu");
+        break;
     }
 
     newMenuSelect(fullState);
@@ -1016,6 +1023,17 @@ void FMDisplay::newMenuSelect(FullState* fullState) {
             lcd->print(' ');
         }
         break;
+    case MENU_LOAD_RANDOMIZER:
+        eraseRow(menuRow + 1);
+        lcd->setCursor(1, menuRow + 1);
+        lcd->print(otherRandomizer[(int)fullState->randomizer.Oper]);
+        lcd->setCursor(6, menuRow + 1);
+        lcd->print(enveloppeRandomizer[(int)fullState->randomizer.EnvT]);
+        lcd->setCursor(11, menuRow + 1);
+        lcd->print(otherRandomizer[(int)fullState->randomizer.IM]);
+        lcd->setCursor(16, menuRow + 1);
+        lcd->print(otherRandomizer[(int)fullState->randomizer.Modl]);
+        break;
     default:
         break;
     }
@@ -1031,6 +1049,9 @@ void FMDisplay::menuBack(enum MenuState oldMenuState, FullState* fullState) {
             || fullState->currentMenuItem->menuState == MENU_ERROR
             || fullState->currentMenuItem->menuState == MENU_CANCEL) {
         return;
+    }
+    if (oldMenuState == MENU_LOAD_RANDOMIZER) {
+        eraseRow(menuRow + 1);
     }
     eraseRow(menuRow);
     menuRow -= rowInc(oldMenuState);
