@@ -123,7 +123,7 @@
 #ifndef OVERCLOCK
 
 /* PLL_VCO = (HSE_VALUE or HSI_VALUE / PLL_M) * PLL_N */
-// PreenFM2 CERB40 Quartz frequency 12Mhz
+// PreenFM2 STM32F407Discovery Quartz frequency 8Mhz
 #define PLL_M      8
 #define PLL_N      336
 
@@ -136,14 +136,15 @@
 #else
 
 /* PLL_VCO = (HSE_VALUE or HSI_VALUE / PLL_M) * PLL_N */
+/* 216 MHz overclocked */
 #define PLL_M      8
-#define PLL_N      384
+#define PLL_N      432 //384
 
 /* SYSCLK = PLL_VCO / PLL_P */
 #define PLL_P      2
 
 /* USB OTG FS, SDIO and RNG Clock =  PLL_VCO / PLLQ */
-#define PLL_Q      8
+#define PLL_Q      9 //8
 
 #endif
 

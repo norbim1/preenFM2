@@ -33,7 +33,7 @@
 #define STM32F4D_I2S_AUDIO_FREQ   38009
 #else
 // 192000000 / 1116 / 4  :
-#define STM32F4D_I2S_AUDIO_FREQ  	43010
+#define STM32F4D_I2S_AUDIO_FREQ  	48000 //43010
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
@@ -352,7 +352,8 @@ void CS43L22_Start(u32 *buffer, u16 len)
 #ifndef OVERCLOCK
 	RCC_PLLI2SConfig((uint32_t)214,(uint32_t)2); //I2S PLL dividers for 38009 calculated from stm32f407 datasheet!!!
 #else
-	RCC_PLLI2SConfig((uint32_t)198,(uint32_t)2); //I2S PLL dividers for 43010 calculated from stm32f407 datasheet!!!
+	// RCC_PLLI2SConfig((uint32_t)198,(uint32_t)2); //I2S PLL dividers for 43010 calculated from stm32f407 datasheet!!!
+	RCC_PLLI2SConfig((uint32_t)258,(uint32_t)3); //I2S PLL dividers for 48000 from stm32f407 datasheet!!!
 #endif
 	CS43L22_Config();
 
@@ -434,7 +435,7 @@ static void codec_init()
   send_codec_ctrl(CodecCommandBuffer, 2);
 
   CodecCommandBuffer[0] = CODEC_MAP_CLK_CTRL;
-  CodecCommandBuffer[1] = 0x81; //auto detect clock
+  CodecCommandBuffer[1] = 0x80; //0x81; //auto detect clock
   send_codec_ctrl(CodecCommandBuffer, 2);
 
   CodecCommandBuffer[0] = CODEC_MAP_IF_CTRL1;
