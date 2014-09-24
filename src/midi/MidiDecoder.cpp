@@ -347,6 +347,12 @@ void MidiDecoder::controlChange(int timbre, MidiEvent& midiEvent) {
     case CC_HOLD_PEDAL:
     	this->synth->setHoldPedal(timbre, midiEvent.value[1]);
     	break;
+    case CC_VOLUME:
+    	this->synth->setMidiVolume(timbre, midiEvent.value[1]);
+    	break;
+    case CC_PAN:
+    	this->synth->setMidiPan(timbre, midiEvent.value[1]);
+    	break;
     case CC_OMNI_OFF:
     	// Omni on && omni OFF only accepted on original bas channel
         if (this->synthState->fullState.midiConfigValue[MIDICONFIG_CHANNEL1 + timbre] == midiEvent.channel ) {

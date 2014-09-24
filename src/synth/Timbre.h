@@ -161,7 +161,7 @@ public:
         mix1 = params.engineMix1.mixOsc1 + matrix.getDestination(MIX_OSC1) + matrix.getDestination(ALL_MIX);
         // Optimization to check mix1 is between 0 and 1
         mix1 = __USAT((int)(mix1 * 65536) , 16) * inv65535;
-        float pan1 = params.engineMix1.panOsc1 + matrix.getDestination(PAN_OSC1) + matrix.getDestination(ALL_PAN) + 1.0f;
+        float pan1 = params.engineMix1.panOsc1 + matrix.getDestination(PAN_OSC1) + matrix.getDestination(ALL_PAN) + midiPan + 1.0f;
         // pan1 is between -1 and 1 : Scale from 0.0 to 256
         int pan = __USAT((int)(pan1 * 128), 8);
         pan1Left = panTable[256 - pan];
@@ -171,7 +171,7 @@ public:
         mix2 = params.engineMix1.mixOsc2 + matrix.getDestination(MIX_OSC2) + matrix.getDestination(ALL_MIX);
         mix2 = __USAT((int)(mix2 * 65535) , 16) * inv65535;
 
-        float pan2 = params.engineMix1.panOsc2 + matrix.getDestination(PAN_OSC2) + matrix.getDestination(ALL_PAN) + 1.0f;
+        float pan2 = params.engineMix1.panOsc2 + matrix.getDestination(PAN_OSC2) + matrix.getDestination(ALL_PAN) + midiPan + 1.0f;
         pan = __USAT((int)(pan2 * 128), 8);
         pan2Left = panTable[256 - pan];
         pan2Right = panTable[pan];
@@ -184,7 +184,7 @@ public:
         mix3 = params.engineMix2.mixOsc3 + matrix.getDestination(MIX_OSC3) + matrix.getDestination(ALL_MIX);
         mix3 = __USAT((int)(mix3 * 65535) , 16) * inv65535;
 
-        float pan3 = params.engineMix2.panOsc3 + matrix.getDestination(PAN_OSC3) + matrix.getDestination(ALL_PAN) + 1.0f;
+        float pan3 = params.engineMix2.panOsc3 + matrix.getDestination(PAN_OSC3) + matrix.getDestination(ALL_PAN) + midiPan + 1.0f;
         pan = __USAT((int)(pan3 * 128), 8);
         pan3Left = panTable[256 - pan];
         pan3Right = panTable[pan];
@@ -192,7 +192,7 @@ public:
         // No matrix for mix4 and pan4
         mix4 = params.engineMix2.mixOsc4 + matrix.getDestination(ALL_MIX);
         mix4 = __USAT((int)(mix4 * 65535) , 16) * inv65535;
-        float pan4 = params.engineMix2.panOsc4 + matrix.getDestination(ALL_PAN) + 1.0f;
+        float pan4 = params.engineMix2.panOsc4 + matrix.getDestination(ALL_PAN) + midiPan + 1.0f;
         pan = __USAT((int)(pan4 * 128), 8);
         pan4Left = panTable[256 - pan];
         pan4Right = panTable[pan];
@@ -207,14 +207,14 @@ public:
 
         mix5 = params.engineMix3.mixOsc5  + matrix.getDestination(ALL_MIX);
         mix5 = __USAT((int)(mix5 * 65535) , 16) * inv65535;
-        float pan5 = params.engineMix3.panOsc5 + matrix.getDestination(ALL_PAN)  + 1.0f;
+        float pan5 = params.engineMix3.panOsc5 + matrix.getDestination(ALL_PAN)  + midiPan + 1.0f;
         pan = __USAT((int)(pan5 * 128), 8);
         pan5Left = panTable[256 - pan];
         pan5Right = panTable[pan];
 
         mix6 = params.engineMix3.mixOsc6 + matrix.getDestination(ALL_MIX);
         mix6 = __USAT((int)(mix6 * 65535) , 16) * inv65535;
-        float pan6 = params.engineMix3.panOsc6 + matrix.getDestination(ALL_PAN) + 1.0f;
+        float pan6 = params.engineMix3.panOsc6 + matrix.getDestination(ALL_PAN) + midiPan + 1.0f;
         pan = __USAT((int)(pan6 * 128), 8);
         pan6Left = panTable[256 - pan];
         pan6Right = panTable[pan];
@@ -222,6 +222,10 @@ public:
     }
 
     void setHoldPedal(int value);
+
+    void setMidiVolume(int value);
+
+    void setMidiPan(int value);
 
     Matrix* getMatrix() {
         return &matrix;
@@ -313,6 +317,8 @@ private:
     float *sbMax;
     float numberOfVoiceInverse;
     float mixerGain;
+    float midiVolume;
+    float midiPan;
     Voice *voices[MAX_NUMBER_OF_VOICES];
     bool holdPedal;
 

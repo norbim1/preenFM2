@@ -150,6 +150,8 @@ Timbre::Timbre() {
     this->currentGate = 0;
     this->sbMax = &this->sampleBlock[64];
     this->holdPedal = false;
+    this->midiVolume = 1.0f;
+    this->midiPan = 0.0f;
 
     // arpegiator
     setNewBPMValue(90);
@@ -418,7 +420,13 @@ void Timbre::setHoldPedal(int value) {
 }
 
 
+void Timbre::setMidiVolume(int value) {
+	midiVolume = value * .00787401574803149606f;
+}
 
+void Timbre::setMidiPan(int value) {
+	midiPan = value * .00787401574803149606f * 2.0f - 1.0f;
+}
 
 void Timbre::setNewBPMValue(float bpm) {
 	ticksPerSecond = bpm * 24.0f / 60.0f;
@@ -517,7 +525,7 @@ void Timbre::fxAfterBlock(float ratioTimbres) {
 
     // LP Algo
     int effectType = params.effect.type;
-    float gainTmp =  params.effect.param3 * numberOfVoiceInverse * ratioTimbres;
+    float gainTmp =  params.effect.param3 * numberOfVoiceInverse * ratioTimbres * midiVolume;
     mixerGain = 0.02f * gainTmp + .98  * mixerGain;
 
     switch (effectType) {

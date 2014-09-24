@@ -77,6 +77,14 @@ void Synth::setHoldPedal(int timbre, int value) {
     timbres[timbre].setHoldPedal(value);
 }
 
+void Synth::setMidiVolume(int timbre, int value) {
+    timbres[timbre].setMidiVolume(value);
+}
+
+void Synth::setMidiPan(int timbre, int value) {
+    timbres[timbre].setMidiPan(value);
+}
+
 void Synth::allNoteOff(int timbre) {
     int numberOfVoices = timbres[timbre].params.engine1.numberOfVoice;
     for (int k = 0; k < numberOfVoices; k++) {

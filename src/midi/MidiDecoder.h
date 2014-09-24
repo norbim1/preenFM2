@@ -47,6 +47,8 @@ struct MidiEvent {
 enum AllControlChange {
     CC_BANK_SELECT = 0,
     CC_MODWHEEL = 1,
+    CC_VOLUME = 7,
+    CC_PAN = 10,
     CC_ALGO = 16,
     CC_IM1,
     CC_IM2,

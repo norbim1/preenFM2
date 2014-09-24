@@ -148,7 +148,8 @@ public:
     void setNewSymbolInPresetName(int timbre, int index, int value);
     void loadPreenFMPatchFromMidi(int timbre, int bank, int bankLSB, int patchNumber);
     void setHoldPedal(int timbre, int value);
-
+    void setMidiVolume(int timbre, int value);
+    void setMidiPan(int timbre, int value);
 
 #ifdef DEBUG
     void debugVoice();
