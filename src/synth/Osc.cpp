@@ -106,9 +106,9 @@ struct WaveTable waveTables[NUMBER_OF_WAVETABLES] __attribute__ ((section(".ccm"
 		},
 		//		OSC_SHAPE_ENV8,
 		{
-				silence,
-				0x00,
-				0.0f,
+				lfoEnv2OscValues,
+				0x3ff,
+				1.0f,
 				0.0f,
 				0.0f
 		},

@@ -20,6 +20,7 @@
 #include "SynthStateAware.h"
 #include "Matrix.h"
 #include "LfoStepSeq.h"
+#include "LfoEnv2.h"
 
 extern float sinTable[];
 

@@ -898,8 +898,11 @@ void Timbre::afterNewParamsLoad() {
     	setNewEffecParam(k);
     }
 	//### ADDED ###
-	if (timbreNumber == 0)
+	if(timbreNumber == 0)
 	{
+		// update env2 oscillator
+		lfoEnv2[0].updateOscValues();
+
 		// which step seq into which step oscillator
 		this->lfoStepSeq[0].updateOscValues(0);
 		this->lfoStepSeq[1].updateOscValues(1);
@@ -1336,6 +1339,13 @@ void Timbre::lfoValueChange(int currentRow, int encoder, float newValue) {
 		break;
 	case ROW_LFOENV2:
 		lfoEnv2[0].valueChanged(encoder);
+		//### ADDED ###
+		if(timbreNumber == 0)
+		{
+			// update env2 oscillator
+			lfoEnv2[0].updateOscValues();
+		}
+		//#############
 		break;
 	case ROW_LFOSEQ1:
 	case ROW_LFOSEQ2:
