@@ -189,7 +189,7 @@ struct FilterRowDisplay filterRowDisplay[FILTER_LAST] = {
 };
 
 
-const char* oscShapeNames []=  {"sin ", "saw ", "squa", "s^2 ", "szer", "spos", "rand", "off "} ;
+const char* oscShapeNames []=  {"sin ", "saw ", "squa", "s^2 ", "szer", "spos", "rand", "seq1", "seq2", "env8", "off "} ;
 
 
 
@@ -1344,14 +1344,13 @@ void SynthState::setNewStepValue(int timbre, int whichStepSeq, int step, int new
         int oldStep = stepSelect[whichStepSeq];
         seqSteps->steps[step] = newValue;
         stepSelect[whichStepSeq] = step;
-        if (oldStep != step) {
+	    if (oldStep != step) {
             propagateNewParamValueFromExternal(timbre, ROW_LFOSEQ1 + whichStepSeq, 2, NULL, oldStep, stepSelect[whichStepSeq]);
         }
         propagateNewParamValueFromExternal(timbre, ROW_LFOSEQ1 + whichStepSeq, 3, NULL, oldValue, newValue);
     }
 
 }
-
 
 
 void SynthState::setNewValue(int timbre, int row, int encoder, float newValue) {

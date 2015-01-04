@@ -20,7 +20,7 @@
 
 #include "Lfo.h"
 
-
+extern float lfoOscValues[2][128];
 
 class LfoStepSeq: public Lfo {
 public:
@@ -31,6 +31,10 @@ public:
 	void noteOff();
 	void midiClock(int songPosition, bool computeStep);
 
+	//### ADDED ###
+	void updateOscValues(int lfoIndex);
+	//void updateOscValue(int index);
+	//#############
 
 private:
 	StepSequencerParams* seqParams;

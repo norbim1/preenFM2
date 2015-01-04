@@ -20,8 +20,9 @@
 float silence[1]  __attribute__ ((section(".ccmnoload")));
 float noise[32] __attribute__ ((section(".ccmnoload")));
 
-#include "../waveforms/waves.c"
 
+
+#include "../waveforms/waves.c"
 
 float* Osc::oscValues[4] __attribute__ ((section(".ccmnoload")));
 float oscValues1[32] __attribute__ ((section(".ccmnoload")));
@@ -85,6 +86,30 @@ struct WaveTable waveTables[NUMBER_OF_WAVETABLES] __attribute__ ((section(".ccm"
 				0x1f,
 				0.0f,
 				1.0f,
+				0.0f
+		},
+		//		OSC_SHAPE_SEQ1,
+		{
+				lfoOscValues[0],
+				0x7f,
+				1.0f,
+				0.0f,
+				0.0f
+		},
+		//		OSC_SHAPE_SEQ2,
+		{
+				lfoOscValues[1],
+				0x7f,
+				1.0f,
+				0.0f,
+				0.0f
+		},
+		//		OSC_SHAPE_ENV8,
+		{
+				silence,
+				0x00,
+				0.0f,
+				0.0f,
 				0.0f
 		},
 		//	OSC_SHAPE_OFF,

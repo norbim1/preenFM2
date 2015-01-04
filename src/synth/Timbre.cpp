@@ -206,7 +206,8 @@ void Timbre::init(int timbreNumber) {
     for (int k = 0; k< NUMBER_OF_LFO_STEP; k++) {
         lfoStepSeq[k].init(stepseqparams[k], stepseqs[k], &matrix, (SourceEnum)(MATRIX_SOURCE_LFOSEQ1+k), (DestinationEnum)(LFOSEQ1_GATE+k));
     }
-    this->timbreNumber = timbreNumber;
+
+	this->timbreNumber = timbreNumber;
 }
 
 void Timbre::setVoiceNumber(int v, int n) {
@@ -896,6 +897,14 @@ void Timbre::afterNewParamsLoad() {
     for (int k=0; k<NUMBER_OF_ENCODERS; k++) {
     	setNewEffecParam(k);
     }
+	//### ADDED ###
+	if (timbreNumber == 0)
+	{
+		// which step seq into which step oscillator
+		this->lfoStepSeq[0].updateOscValues(0);
+		this->lfoStepSeq[1].updateOscValues(1);
+	}
+	//#############
 }
 
 
@@ -1331,6 +1340,13 @@ void Timbre::lfoValueChange(int currentRow, int encoder, float newValue) {
 	case ROW_LFOSEQ1:
 	case ROW_LFOSEQ2:
 		lfoStepSeq[currentRow - ROW_LFOSEQ1].valueChanged(encoder);
+		//### ADDED ###
+		if(timbreNumber == 0 && encoder == 3)
+		{
+			// update step oscillator
+			this->lfoStepSeq[currentRow - ROW_LFOSEQ1].updateOscValues(currentRow - ROW_LFOSEQ1);
+		}
+		//#############
 		break;
 	}
 }
