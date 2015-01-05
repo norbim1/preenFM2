@@ -189,7 +189,7 @@ struct FilterRowDisplay filterRowDisplay[FILTER_LAST] = {
 };
 
 
-const char* oscShapeNames []=  {"sin ", "saw ", "squa", "s^2 ", "szer", "spos", "rand", "seq1", "seq2", "env8", "off "} ;
+const char* oscShapeNames []=  {"sin ", "saw ", "squa", "s^2 ", "szer", "spos", "rand", "env1", "env2", "seq1", "seq2", "off "} ;
 
 
 

@@ -901,6 +901,7 @@ void Timbre::afterNewParamsLoad() {
 	if(timbreNumber == 0)
 	{
 		// update env2 oscillator
+		lfoEnv[0].updateOscValues();
 		lfoEnv2[0].updateOscValues();
 
 		// which step seq into which step oscillator
@@ -1336,6 +1337,13 @@ void Timbre::lfoValueChange(int currentRow, int encoder, float newValue) {
 		break;
 	case ROW_LFOENV1:
 		lfoEnv[0].valueChanged(encoder);
+		//### ADDED ###
+		if(timbreNumber == 0)
+		{
+			// update env1 oscillator
+			lfoEnv[0].updateOscValues();
+		}
+		//#############
 		break;
 	case ROW_LFOENV2:
 		lfoEnv2[0].valueChanged(encoder);
