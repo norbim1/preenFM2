@@ -850,6 +850,67 @@ void Timbre::fxAfterBlock(float ratioTimbres) {
 
         break;
     }
+	//### ADDED ###
+	case FILTER_FOLDER:
+	{
+    	float *sp = this->sampleBlock;
+		float val;
+        float sampleL;
+        float sampleR;
+    	for (int k=0 ; k < BLOCK_SIZE ; k++) {
+			sampleL = *(sp);
+			sampleR = *(sp + 1);
+			// shift
+			sampleL = sampleL + fxParam1;
+			// stretch
+			sampleL = sampleL * fxParam2;
+			// fold
+			if(sampleL > 0)	// positive half
+			{
+				val = fmod(sampleL, 1.0f);
+				if(fmod(sampleL, 2.0f) >= 1)	// fold back
+					sampleL = 1.0f - val;
+				else
+					sampleL = val;
+			}
+			else			// negative half
+			{
+				val = -fmod(sampleL, 1.0f);
+				if(fmod(sampleL, 2.0f) < -1)	// fold back
+					sampleL = val - 1.0f;
+				else
+					sampleL = -val;
+			}
+    		// final gain - necessary?
+			*sp++ = sampleL * mixerGain;
+
+			// shift
+			sampleR = sampleR + fxParam1;
+			// stretch
+			sampleR = sampleR * fxParam2;
+			// fold
+			if(sampleR > 0)	// positive half
+			{
+				val = fmod(sampleR, 1.0f);
+				if(fmod(sampleR, 2.0f) >= 1)	// fold back
+					sampleR = 1.0f - val;
+				else
+					sampleR = val;
+			}
+			else			// negative half
+			{
+				val = -fmod(sampleR, 1.0f);
+				if(fmod(sampleR, 2.0f) < -1)	// fold back
+					sampleR = val - 1.0f;
+				else
+					sampleR = -val;
+			}
+    		// final gain - necessary?
+			*sp++ = sampleR * mixerGain;
+		}
+	}
+	break;
+	//#############
     case FILTER_OFF:
     {
     	// Filter off has gain...
@@ -898,8 +959,12 @@ void Timbre::afterNewParamsLoad() {
     	setNewEffecParam(k);
     }
 	//### ADDED ###
-	if (timbreNumber == 0)
+	if(timbreNumber == 0)
 	{
+		// update env2 oscillator
+		lfoEnv[0].updateOscValues();
+		lfoEnv2[0].updateOscValues();
+
 		// which step seq into which step oscillator
 		this->lfoStepSeq[0].updateOscValues(0);
 		this->lfoStepSeq[1].updateOscValues(1);
@@ -1014,6 +1079,16 @@ void Timbre::setNewEffecParam(int encoder) {
         fxParam1PlusMatrix = -1.0;
         break;
     }
+	//### ADDED ###
+	case FILTER_FOLDER:
+	{
+		// shift up past limit (0 -> 2)
+		fxParam1 = params.effect.param1 + params.effect.param1;
+		// stretch up to 5 times...
+		fxParam2 = (params.effect.param2 * 4) + 1.0f;
+		break;
+	}
+	//#############
 	}
 }
 
@@ -1333,9 +1408,23 @@ void Timbre::lfoValueChange(int currentRow, int encoder, float newValue) {
 		break;
 	case ROW_LFOENV1:
 		lfoEnv[0].valueChanged(encoder);
+		//### ADDED ###
+		if(timbreNumber == 0)
+		{
+			// update env1 oscillator
+			lfoEnv[0].updateOscValues();
+		}
+		//#############
 		break;
 	case ROW_LFOENV2:
 		lfoEnv2[0].valueChanged(encoder);
+		//### ADDED ###
+		if(timbreNumber == 0)
+		{
+			// update env2 oscillator
+			lfoEnv2[0].updateOscValues();
+		}
+		//#############
 		break;
 	case ROW_LFOSEQ1:
 	case ROW_LFOSEQ2:

@@ -88,6 +88,22 @@ struct WaveTable waveTables[NUMBER_OF_WAVETABLES] __attribute__ ((section(".ccm"
 				1.0f,
 				0.0f
 		},
+		//		OSC_SHAPE_ENV1,
+		{
+				lfoEnv1OscValues,
+				0x3ff,
+				1.0f,
+				0.0f,
+				0.0f
+		},
+		//		OSC_SHAPE_ENV2,
+		{
+				lfoEnv2OscValues,
+				0x3ff,
+				1.0f,
+				0.0f,
+				0.0f
+		},
 		//		OSC_SHAPE_SEQ1,
 		{
 				lfoOscValues[0],
@@ -101,14 +117,6 @@ struct WaveTable waveTables[NUMBER_OF_WAVETABLES] __attribute__ ((section(".ccm"
 				lfoOscValues[1],
 				0x7f,
 				1.0f,
-				0.0f,
-				0.0f
-		},
-		//		OSC_SHAPE_ENV8,
-		{
-				silence,
-				0x00,
-				0.0f,
 				0.0f,
 				0.0f
 		},
