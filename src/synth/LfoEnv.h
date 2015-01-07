@@ -99,7 +99,7 @@ public:
 		// Assign values
 		int16_t sampleIndex = 0;
 
-		// silence samples
+		// attack samples
 		//  0 for silenceCount
 		int16_t breakIndex = attackCount;
 		float sampleIncrement = 1.0f / attackCount;
@@ -111,7 +111,7 @@ public:
 			currentValue += sampleIncrement;
 		}
 
-		// attack samples
+		// decay samples
 		//  0 to 1 for attackCount
 		breakIndex += decayCount;
 		sampleIncrement = (1.0f - sustainLevel) / decayCount;
@@ -131,7 +131,7 @@ public:
 			lfoEnv1OscValues[1023 - sampleIndex] = -sustainLevel;
 		}
 
-		// decay
+		// release
 		//  1 to 0 for decayCount
 		breakIndex += releaseCount;
 		sampleIncrement = sustainLevel / releaseCount;
