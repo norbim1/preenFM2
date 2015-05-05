@@ -21,6 +21,8 @@
 #include "Lfo.h"
 #include "Env.h"
 
+//### ADDED ###
+extern float lfoEnv1OscValues[];
 
 class LfoEnv: public Lfo {
 public:
@@ -32,18 +34,116 @@ public:
         switch (encoder) {
         case 0:
             stateInc[ENV_STATE_ON_A] = 0.0008f / (envParams->attack + 0.0001);
+			//### ADDED ###
+			attackVal = envParams->attack;
             break;
         case 1:
             stateInc[ENV_STATE_ON_D] = 0.0008f / (envParams->decay + 0.0001);
+			//### ADDED ###
+			decayVal = envParams->decay;
             break;
         case 2:
             stateTarget[ENV_STATE_ON_D] =  envParams->sustain;
             stateTarget[ENV_STATE_ON_S] =  envParams->sustain;
+			//### ADDED ###
+			sustainLevel = envParams->sustain;
             break;
         case 3:
             stateInc[ENV_STATE_ON_R] = 0.0008f / (envParams->release + 0.0001);
+			//### ADDED ###
+			releaseVal = envParams->release;
             break;
         }	}
+
+	//### ADDED ###
+	/*
+	 * Sets the values of the Env Oscillator array based on the current envelope settings
+	 */
+	void updateOscValues()
+	{
+		// 512 positions - 2.56 max in value
+		// limit
+		if(attackVal > 2.56) attackVal = 2.56;
+		if(decayVal > 2.56) decayVal = 2.56;
+		if(releaseVal > 2.56) releaseVal = 2.56;
+		// sustainLevel
+		if(sustainLevel > 1) sustainLevel = 1;
+		// attack
+		int16_t attackCount = attackVal * 200;
+		// decay
+		int16_t decayCount = decayVal * 200;
+		// release
+		int16_t releaseCount = releaseVal * 200;
+		// flat fill
+		int16_t flatCount = 0;
+
+		// adjustments:
+		//  adjust last step to array limit
+		//  earlier states hold preference
+		int16_t total = attackCount + decayCount + releaseCount;
+		if (total < 512)
+		{
+			flatCount = 512 - total;
+		}
+		else if ((attackCount + decayCount) < 512)
+		{
+			releaseCount = 512 - (attackCount + decayCount);
+		}
+		else if (attackCount < 512)
+		{
+			decayCount  = 512 - attackCount;
+		}
+		// a _ d s r
+		//  /f\___
+		// /      \
+		// Assign values
+		int16_t sampleIndex = 0;
+
+		// attack samples
+		//  0 for silenceCount
+		int16_t breakIndex = attackCount;
+		float sampleIncrement = 1.0f / attackCount;
+		float currentValue = 0;
+		for (; sampleIndex < 512 && sampleIndex < breakIndex; sampleIndex++)
+		{
+			lfoEnv1OscValues[sampleIndex] = currentValue;
+			lfoEnv1OscValues[1023 - sampleIndex] = -currentValue;
+			currentValue += sampleIncrement;
+		}
+
+		// decay samples
+		//  0 to 1 for attackCount
+		breakIndex += decayCount;
+		sampleIncrement = (1.0f - sustainLevel) / decayCount;
+		currentValue = 1;
+		for (; sampleIndex < 512 && sampleIndex < breakIndex; sampleIndex++)
+		{
+			lfoEnv1OscValues[sampleIndex] = currentValue;
+			lfoEnv1OscValues[1023 - sampleIndex] = -currentValue;
+			currentValue -= sampleIncrement;
+		}
+		// flat fill
+		//  1 for flatCount
+		breakIndex += flatCount;
+		for (; sampleIndex < 512 && sampleIndex < breakIndex; sampleIndex++)
+		{
+			lfoEnv1OscValues[sampleIndex] = sustainLevel;
+			lfoEnv1OscValues[1023 - sampleIndex] = -sustainLevel;
+		}
+
+		// release
+		//  1 to 0 for decayCount
+		breakIndex += releaseCount;
+		sampleIncrement = sustainLevel / releaseCount;
+		currentValue = sustainLevel;
+		for (; sampleIndex < 512 && sampleIndex < breakIndex; sampleIndex++)
+		{
+			lfoEnv1OscValues[sampleIndex] = currentValue;
+			lfoEnv1OscValues[1023 - sampleIndex] = -currentValue;
+			currentValue -= sampleIncrement;
+		}
+	}
+	//#############
 
     void newState() {
 
@@ -93,6 +193,13 @@ private:
 
     EnvelopeParams* envParams;
 	EnvData env;
+
+	//### ADDED ###
+	float attackVal;
+	float decayVal;
+	float sustainLevel;
+	float releaseVal;
+	//#############
 };
 
 #endif /* LFOENV_H_ */

@@ -29,6 +29,9 @@
 #include "Lfo.h"
 #include "Env.h"
 
+//### ADDED ###
+extern float lfoEnv2OscValues[];
+
 enum Env2State {
     ENV2_STATE_ON_S = 0,
     ENV2_STATE_ON_A,
@@ -47,15 +50,179 @@ public:
         switch (encoder) {
         case 0:
             stateInc[ENV2_STATE_ON_S] = 0.0008f / (envParams->silence + 0.0001);
+			//### ADDED ###
+			silenceVal = envParams->silence;
             break;
         case 1:
             stateInc[ENV2_STATE_ON_A] = 0.0008f / (envParams->attack + 0.0001);
+			//### ADDED ###
+			attackVal = envParams->attack;
             break;
         case 2:
             stateInc[ENV2_STATE_ON_D] = 0.0008f / (envParams->decay + 0.0001);
+			//### ADDED ###
+			decayVal = envParams->decay;
             break;
         }
 	}
+
+	//### ADDED ###
+
+	//void updateOscValuesOld()
+	//{
+	//	// 512 positions - 2.56 max in value
+	//	// limit
+	//	if(silenceVal > 2.56) silenceVal = 2.56;
+	//	if(attackVal > 2.56) attackVal = 2.56;
+	//	if(decayVal > 2.56) decayVal = 2.56;
+	//	// delay / silence
+	//	int16_t silenceCount = silenceVal * 200;
+	//	// attack
+	//	int16_t attackCount = attackVal * 200;
+	//	// decay
+	//	int16_t decayCount = decayVal * 200;
+	//	// flat fill
+	//	int16_t flatCount = 0;
+	//	// adjustments:
+	//	//  adjust last step to array limit
+	//	//  earlier states hold preference
+	//	int16_t total = silenceCount + attackCount + decayCount;
+	//	if (total < 512)
+	//	{
+	//		flatCount = 512 - total;
+	//	}
+	//	else if ((silenceCount + attackCount) < 512)
+	//	{
+	//		decayCount = 512 - (silenceCount + attackCount);
+	//	}
+	//	else if (silenceCount < 512)
+	//	{
+	//		attackCount  = 512 - silenceCount;
+	//	}
+	//	//     _
+	//	// s a/f\d
+	//	// __/   \
+	//	// Assign values
+	//	int16_t sampleIndex = 0;
+	//	int16_t breakIndex = silenceCount;
+	//	// silence samples
+	//	//  0 for silenceCount
+	//	for (; sampleIndex < 512 && sampleIndex < breakIndex; sampleIndex++)
+	//	{
+	//		lfoEnv2OscValues[sampleIndex] = 0.0f;
+	//		lfoEnv2OscValues[1023 - sampleIndex] = 0.0f;
+	//	}
+	//	// attack samples
+	//	//  0 to 1 for attackCount
+	//	breakIndex += attackCount;
+	//	float sampleIncrement = 1.0f / attackCount;
+	//	float currentValue = 0;
+	//	for (; sampleIndex < 512 && sampleIndex < breakIndex; sampleIndex++)
+	//	{
+	//		lfoEnv2OscValues[sampleIndex] = currentValue;
+	//		lfoEnv2OscValues[1023 - sampleIndex] = -currentValue;
+	//		currentValue += sampleIncrement;
+	//	}
+	//	// flat fill
+	//	//  1 for flatCount
+	//	breakIndex += flatCount;
+	//	for (; sampleIndex < 512 && sampleIndex < breakIndex; sampleIndex++)
+	//	{
+	//		lfoEnv2OscValues[sampleIndex] = 1.0f;
+	//		lfoEnv2OscValues[1023 - sampleIndex] = -1.0f;
+	//	}
+	//	// decay
+	//	//  1 to 0 for decayCount
+	//	breakIndex += decayCount;
+	//	sampleIncrement = 1.0f / decayCount;
+	//	currentValue = 1;
+	//	for (; sampleIndex < 512 && sampleIndex < breakIndex; sampleIndex++)
+	//	{
+	//		lfoEnv2OscValues[sampleIndex] = currentValue;
+	//		lfoEnv2OscValues[1023 - sampleIndex] = -currentValue;
+	//		currentValue -= sampleIncrement;
+	//	}
+	//}
+
+	/*
+	 * Sets the values of the Env Oscillator array based on the current envelope settings
+	 */
+	void updateOscValues()
+	{
+		// 512 positions - 2.56 max in value
+		// limit
+		if(silenceVal > 2.56) silenceVal = 2.56;
+		if(attackVal > 2.56) attackVal = 2.56;
+		if(decayVal > 2.56) decayVal = 2.56;
+		// delay / silence
+		int16_t silenceCount = silenceVal * 400;
+		// attack
+		int16_t attackCount = attackVal * 400;
+		// decay
+		int16_t decayCount = decayVal * 400;
+		// flat fill
+		int16_t flatCount = 0;
+
+		// adjustments:
+		//  adjust last step to array limit
+		//  earlier states hold preference
+		int16_t total = silenceCount + attackCount + decayCount;
+		if (total < 1024)
+		{
+			flatCount = 1024 - total;
+		}
+		else if ((silenceCount + attackCount) < 1024)
+		{
+			decayCount = 1024 - (silenceCount + attackCount);
+		}
+		else if (silenceCount < 1024)
+		{
+			attackCount  = 1024 - silenceCount;
+		}
+		//     _
+		// s a/f\d
+		// __/   \
+		// Assign values
+		int16_t sampleIndex = 0;
+		int16_t breakIndex = silenceCount;
+
+		// silence samples
+		//  0 for silenceCount
+		for (;sampleIndex < breakIndex && sampleIndex < 1024; sampleIndex++)
+		{
+			lfoEnv2OscValues[sampleIndex] = -1.0f;
+		}
+
+		// attack samples
+		//  0 to 1 for attackCount
+		breakIndex += attackCount;
+		float sampleIncrement = 2.0f / attackCount;
+		float currentValue = -1.0f;
+		for (;sampleIndex < breakIndex && sampleIndex < 1024; sampleIndex++)
+		{
+			lfoEnv2OscValues[sampleIndex] = currentValue;
+			currentValue += sampleIncrement;
+		}
+		// flat fill
+		//  1 for flatCount
+		breakIndex += flatCount;
+		for (;sampleIndex < breakIndex && sampleIndex < 1024; sampleIndex++)
+		{
+			lfoEnv2OscValues[sampleIndex] = 1.0f;
+		}
+
+		// decay
+		//  1 to 0 for decayCount
+		breakIndex += decayCount;
+		sampleIncrement = 2.0f / decayCount;
+		currentValue = 1;
+		for (;sampleIndex < breakIndex && sampleIndex < 1024; sampleIndex++)
+		{
+			lfoEnv2OscValues[sampleIndex] = currentValue;
+			currentValue -= sampleIncrement;
+		}
+	}
+	//#############
 
     void newState() {
         if (env.envState == ENV2_STATE_DEAD) {
@@ -120,6 +287,12 @@ private:
 
     Envelope2Params* envParams;
 	EnvData env;
+
+	//### ADDED ###
+	float silenceVal;
+	float attackVal;
+	float decayVal;
+	//#############
 };
 
 #endif /* LfoEnv2_H_ */

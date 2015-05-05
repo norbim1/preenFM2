@@ -21,6 +21,9 @@
 float expValues[] __attribute__ ((section(".ccm")))  = {0, 0.0594630944, 0.1224620483, 0.189207115, 0.2599210499, 0.3348398542, 0.4142135624, 0.4983070769,
         0.587401052, 0.6817928305, 0.7817974363, 0.8877486254, 1, 1.1189261887, 1.2449240966, 1.37841423 };
 
+//### ADDED ###
+float lfoOscValues[2][128]; 
+
 void LfoStepSeq::init(struct StepSequencerParams* stepSeqParam, struct StepSequencerSteps *stepSeqSteps, Matrix *matrix, SourceEnum source, DestinationEnum dest) {
 	Lfo::init(matrix, source, (DestinationEnum)0);
     this->seqParams = stepSeqParam;
@@ -151,4 +154,55 @@ void LfoStepSeq::noteOn() {
 
 void LfoStepSeq::noteOff() {
 }
+
+//### ADDED ###
+void LfoStepSeq::updateOscValues(int lfoIndex)
+{
+	//for (int i=0; i<16; i++)
+	//{
+		//// set values of step seq oscillator - positive and negative halves
+		//oscValues[lfoIndex][i] = (float)seqSteps->steps[i] / 15.0f;
+		//oscValues[lfoIndex][31 - i] = -(float)seqSteps->steps[i] / 15.0f;
+	//}
+	
+	// set values of step seq oscillator - positive and negative halves
+	for (int i=0; i<16; i++)
+	{
+		lfoOscValues[lfoIndex][i << 2] = (float)seqSteps->steps[i] / 15.0f;
+		lfoOscValues[lfoIndex][(31 - i) << 2] = -(float)seqSteps->steps[i] / 15.0f;
+	}
+	// set intermediate values (halves)
+	int8_t index;
+	for (int i=0; i<32; i++)
+	{
+		index = (i << 2) + 2;
+		lfoOscValues[lfoIndex][index] = (lfoOscValues[lfoIndex][index - 2] + lfoOscValues[lfoIndex][(index + 2) & 127]) / 2;
+	}
+	// set intermediate-intermediate values (quarters)
+	for (int i=0; i<64; i++)
+	{
+		index = (i << 1) + 1;
+		lfoOscValues[lfoIndex][index] = (lfoOscValues[lfoIndex][index - 1] + lfoOscValues[lfoIndex][(index + 1) & 127]) / 2;
+	}
+}
+
+//void LfoStepSeq::updateOscValue(int step)
+//{
+//	// set values of step seq oscillator - positive and negative halves
+//	oscValues[step << 1] = (float)seqSteps->steps[step] / 15.0f;
+//	oscValues[62 - (step << 1)] = -(float)seqSteps->steps[step] / 15.0f;
+//	// following intermediate
+//	oscValues[(step << 1) + 1] = (oscValues[step << 1] + oscValues[(step << 1) + 2]) / 2;
+//	oscValues[63 - (step << 1)] = (oscValues[62 - (step << 1)] + oscValues[(64 - (step << 1)) % 63]) / 2;
+//	// previous intermediate
+//	if(step > 0)
+//	{
+//		oscValues[(step << 1) - 1] = (oscValues[step << 1] + oscValues[(step << 1) - 2]) / 2;
+//	}
+//	if(step < 15)
+//	{
+//		oscValues[61 - (step << 1)] = (oscValues[62 - (step << 1)] + oscValues[60 - (step << 1)]) / 2;
+//	}
+//}
+//#############
 
