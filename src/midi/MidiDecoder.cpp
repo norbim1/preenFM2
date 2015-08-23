@@ -32,6 +32,8 @@ extern USB_OTG_CORE_HANDLE          usbOTGDevice;
 uint8_t sysexBuffer[SYSEX_BUFFER_SIZE];
 
 
+
+
 #ifdef LCDDEBUG
 
 #include "LiquidCrystal.h"
@@ -281,9 +283,6 @@ void MidiDecoder::midiEventReceived(MidiEvent midiEvent) {
         } else {
             for (int tk = 0; tk< timbreIndex; tk++ ) {
                 this->synth->noteOn(timbres[tk], midiEvent.value[0], midiEvent.value[1]);
-                this->synth->getTimbre(timbres[tk])->getMatrix()->setSource(MATRIX_SOURCE_KEY, INV127*midiEvent.value[0]);
-
-                this->synth->getTimbre(timbres[tk])->getMatrix()->setSource(MATRIX_SOURCE_VELOCITY, INV127*midiEvent.value[1]);
 
                 visualInfo->noteOn(timbres[tk], true);
             }
@@ -300,13 +299,13 @@ void MidiDecoder::midiEventReceived(MidiEvent midiEvent) {
         break;
     case MIDI_AFTER_TOUCH:
         for (int tk = 0; tk< timbreIndex; tk++ ) {
-            this->synth->getTimbre(timbres[tk])->getMatrix()->setSource(MATRIX_SOURCE_AFTERTOUCH, INV127*midiEvent.value[0]);
+            this->synth->getTimbre(timbres[tk])->setMatrixSource(MATRIX_SOURCE_AFTERTOUCH, INV127*midiEvent.value[0]);
         }
         break;
     case MIDI_PITCH_BEND:
         for (int tk = 0; tk< timbreIndex; tk++ ) {
             int pb = ((int) midiEvent.value[1] << 7) + (int) midiEvent.value[0] - 8192;
-            this->synth->getTimbre(timbres[tk])->getMatrix()->setSource(MATRIX_SOURCE_PITCHBEND, (float)pb * .00012207031250000000f  );
+            this->synth->getTimbre(timbres[tk])->setMatrixSource(MATRIX_SOURCE_PITCHBEND, (float)pb * .00012207031250000000f  );
         }
         break;
     case MIDI_PROGRAM_CHANGE:
@@ -336,7 +335,7 @@ void MidiDecoder::controlChange(int timbre, MidiEvent& midiEvent) {
     	bankNumberLSB[timbre] = midiEvent.value[1];
         break;
     case CC_MODWHEEL:
-        this->synth->getTimbre(timbre)->getMatrix()->setSource(MATRIX_SOURCE_MODWHEEL, INV127 * midiEvent.value[1]);
+        this->synth->getTimbre(timbre)->setMatrixSource(MATRIX_SOURCE_MODWHEEL, INV127 * midiEvent.value[1]);
         break;
     case CC_ALL_NOTES_OFF:
         this->synth->allNoteOff(timbre);
@@ -644,13 +643,12 @@ void MidiDecoder::decodeNrpn(int timbre) {
 }
 
 void MidiDecoder::newParamValueFromExternal(int timbre, int currentrow, int encoder, ParameterDisplay* param, float oldValue, float newValue) {
-    // Do nothing here...
+    // Nothing to do
 }
 
 
 void MidiDecoder::newParamValue(int timbre, int currentrow,
     int encoder, ParameterDisplay* param, float oldValue, float newValue) {
-
     int sendCCOrNRPN = this->synthState->fullState.midiConfigValue[MIDICONFIG_SENDS] ;
     int channel = this->synthState->fullState.midiConfigValue[MIDICONFIG_CHANNEL1 + timbre] -1;
 
@@ -665,7 +663,7 @@ void MidiDecoder::newParamValue(int timbre, int currentrow,
     // Do we send NRPN ?
     if (sendCCOrNRPN == 2) {
         // Special case for Step sequencer
-        if (currentrow >= ROW_LFOSEQ1 && encoder >=2) {
+        if ((currentrow == ROW_LFOSEQ1 || currentrow == ROW_LFOSEQ2) && encoder >=2) {
             if (encoder == 2) {
                 return;
             }
@@ -936,4 +934,9 @@ void MidiDecoder::flushMidiOut() {
 
 	USART_ITConfig(USART3, USART_IT_TXE, ENABLE);
 }
+
+
+
+
+
 

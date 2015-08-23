@@ -162,7 +162,6 @@ private:
     void init();
 
     float ratioTimbre;
-
     float ratioTimbreLP;
 
     int numberOfOsc;

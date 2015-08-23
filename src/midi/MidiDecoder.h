@@ -168,6 +168,7 @@ private:
     // int bank number
     char bankNumber[NUMBER_OF_TIMBRES];
     char bankNumberLSB[NUMBER_OF_TIMBRES];
+
 };
 
 #endif /* MIDIDECODER_H_ */

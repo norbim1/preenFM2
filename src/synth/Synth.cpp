@@ -55,7 +55,7 @@ void Synth::init() {
     this->writeCursor = 0;
     this->readCursor = 0;
     for (int k = 0; k < MAX_NUMBER_OF_VOICES; k++) {
-        voices[k].init(&timbres[0], &timbres[1], &timbres[2], &timbres[3]);
+        voices[k].init();
     }
     rebuidVoiceTimbre();
     refreshNumberOfOsc();
@@ -67,6 +67,7 @@ void Synth::init() {
 
 void Synth::noteOn(int timbre, char note, char velocity) {
     timbres[timbre].noteOn(note, velocity);
+
 }
 
 void Synth::noteOff(int timbre, char note) {
@@ -148,7 +149,6 @@ void Synth::buildNewSampleBlock() {
         }
     }
     CYCLE_MEASURE_END();
-
 
     CYCLE_MEASURE_START(cycles_voices2);
     // render all voices in their timbre sample block...
@@ -465,17 +465,25 @@ void Synth::newParamValue(int timbre, int currentRow, int encoder, ParameterDisp
             timbres[timbre].env6.reloadADSR(encoder + 4);
             break;
         case ROW_MATRIX_FIRST ... ROW_MATRIX_LAST:
-        if (encoder == ENCODER_MATRIX_DEST) {
-            // Reset old destination
-            timbres[timbre].matrix.resetDestination(oldValue);
-        }
-        break;
-        case ROW_LFO_FIRST ... ROW_LFO_LAST:
-        // timbres[timbre].lfo[currentRow - ROW_LFOOSC1]->valueChanged(encoder);
-        timbres[timbre].lfoValueChange(currentRow, encoder, newValue);
-        break;
+            if (encoder == ENCODER_MATRIX_DEST) {
+                // Reset old destination
+                timbres[timbre].resetMatrixDestination(oldValue);
+            }
+            break;
+        case ROW_LFOOSC1 ... ROW_LFOOSC3:
+        case ROW_LFOENV1 ... ROW_LFOENV2:
+        case ROW_LFOSEQ1 ... ROW_LFOSEQ2:
+            // timbres[timbre].lfo[currentRow - ROW_LFOOSC1]->valueChanged(encoder);
+            timbres[timbre].lfoValueChange(currentRow, encoder, newValue);
+            break;
         case ROW_PERFORMANCE1:
-            timbres[timbre].matrix.setSource((enum SourceEnum)(MATRIX_SOURCE_CC1 + encoder), newValue);
+            timbres[timbre].setMatrixSource((enum SourceEnum)(MATRIX_SOURCE_CC1 + encoder), newValue);
+            break;
+        case ROW_MIDINOTE1CURVE:
+            timbres[timbre].updateMidiNoteScale(0);
+            break;
+        case ROW_MIDINOTE2CURVE:
+            timbres[timbre].updateMidiNoteScale(1);
             break;
     }
 }
@@ -483,7 +491,7 @@ void Synth::newParamValue(int timbre, int currentRow, int encoder, ParameterDisp
 
 // synth is the only one who knows timbres
 void Synth::newTimbre(int timbre)  {
-    this->synthState->setParamsAndTimbre(&timbres[timbre].params, timbre, timbres[timbre].getPerformanceValuesAddress());
+    this->synthState->setParamsAndTimbre(&timbres[timbre].params, timbre);
 }
 
 

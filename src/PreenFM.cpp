@@ -28,7 +28,7 @@
 #include "Synth.h"
 #include "RingBuffer.h"
 #include "MidiDecoder.h"
-#include "UsbKey.h"
+#include "Storage.h"
 #include "Hexter.h"
 
 #include "ff.h"
@@ -43,7 +43,7 @@ LiquidCrystal      lcd ;
 FMDisplay          fmDisplay ;
 MidiDecoder        midiDecoder;
 Encoders           encoders ;
-UsbKey             usbKey ;
+Storage            usbKey ;
 Hexter             hexter;
 
 
@@ -136,11 +136,17 @@ void setup() {
     synthState.setHexter(&hexter);
 
     usbKey.init(synth.getTimbre(0)->getParamRaw(), synth.getTimbre(1)->getParamRaw(), synth.getTimbre(2)->getParamRaw(), synth.getTimbre(3)->getParamRaw());
-    usbKey.setSysexSender(&midiDecoder);
+    usbKey.getPatchBank()->setSysexSender(&midiDecoder);
     // usbKey and hexter needs to know if arpeggiator must be loaded and saved
-    usbKey.setArpeggiatorPartOfThePreset(&synthState.fullState.midiConfigValue[MIDICONFIG_ARPEGGIATOR_IN_PRESET]);
+    usbKey.getPatchBank()->setArpeggiatorPartOfThePreset(&synthState.fullState.midiConfigValue[MIDICONFIG_ARPEGGIATOR_IN_PRESET]);
     hexter.setArpeggiatorPartOfThePreset(&synthState.fullState.midiConfigValue[MIDICONFIG_ARPEGGIATOR_IN_PRESET]);
-    usbKey.loadConfig(synthState.fullState.midiConfigValue);
+    usbKey.getConfigurationFile()->loadConfig(synthState.fullState.midiConfigValue);
+    usbKey.getConfigurationFile()->loadScalaConfig(&synthState.fullState.scalaScaleConfig);
+
+    // Load scala scales if enabled
+    if (synthState.fullState.scalaScaleConfig.scalaEnabled) {
+    	usbKey.getScalaFile()->loadScalaScale(&synthState.fullState.scalaScaleConfig);
+    }
 
     synth.buildNewSampleBlock();
     synth.buildNewSampleBlock();
@@ -240,9 +246,11 @@ void setup() {
     	USBD_Init(&usbOTGDevice, USB_OTG_FS_CORE_ID, &usbdMidiDescriptor, &midiCallback, &midiStreamingUsrCallback);
     }
 
-    if (usbKey.loadDefaultCombo()) {
-    	synthState.propagateAfterNewComboLoad();
-    }
+    // Lad default combo if any
+    usbKey.getComboBank()->loadDefaultCombo();
+    // In any case init tables
+    synthState.propagateAfterNewComboLoad();
+
 
     fmDisplay.init(&lcd, &usbKey);
 
