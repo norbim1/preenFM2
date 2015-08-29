@@ -26,6 +26,26 @@
 float midiNoteScale[2][NUMBER_OF_TIMBRES][128];
 
 
+/*
+#include "LiquidCrystal.h"
+extern LiquidCrystal lcd;
+void myVoiceError(char info, int t, int t2) {
+    lcd.setRealTimeAction(true);
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print('!');
+    lcd.print(info);
+    lcd.print(t);
+    lcd.print(' ');
+    lcd.print(t2);
+    while (true) {};
+}
+
+...
+        if (voiceNumber[k] < 0) myVoiceError('A', voiceNumber[k], k);
+
+*/
+
 //#define DEBUG_ARP_STEP
 enum ArpeggiatorDirection {
     ARPEGGIO_DIRECTION_UP = 0,
@@ -184,12 +204,12 @@ Timbre::~Timbre() {
 void Timbre::init(int timbreNumber) {
 
 
-	env1.init(&params.env1a,  &params.env1b, ENV1_ATTACK);
-	env2.init(&params.env2a,  &params.env2b, ENV2_ATTACK);
-	env3.init(&params.env3a,  &params.env3b, ENV3_ATTACK);
-	env4.init(&params.env4a,  &params.env4b, ENV4_ATTACK);
-	env5.init(&params.env5a,  &params.env5b, ENV5_ATTACK);
-	env6.init(&params.env6a,  &params.env6b, ENV6_ATTACK);
+	env1.init(&params.env1a,  &params.env1b, 0);
+	env2.init(&params.env2a,  &params.env2b, 1);
+	env3.init(&params.env3a,  &params.env3b, 2);
+	env4.init(&params.env4a,  &params.env4b, 3);
+	env5.init(&params.env5a,  &params.env5b, 4);
+	env6.init(&params.env6a,  &params.env6b, 5);
 
 	osc1.init(&params.osc1, OSC1_FREQ);
 	osc2.init(&params.osc2, OSC2_FREQ);
@@ -204,6 +224,9 @@ void Timbre::init(int timbreNumber) {
         for (int n=0; n<128; n++) {
             midiNoteScale[s][timbreNumber][n] = INV127 * (float)n;
         }
+    }
+    for (int lfo=0; lfo<NUMBER_OF_LFO; lfo++) {
+        lfoUSed[lfo] = 0;
     }
 
 }
@@ -292,6 +315,7 @@ void Timbre::preenNoteOn(char note, char velocity) {
 		lcd.print("S:");
 		lcd.print(n);
 #endif
+		    preenNoteOnUpdateMatrix(n, note, velocity);
 			voices[n]->noteOnWithoutPop(note, velocity, voiceIndex++);
 			return;
 		}
@@ -346,6 +370,10 @@ void Timbre::preenNoteOn(char note, char velocity) {
 		}
 		lcd.print(voiceToUse);
 #endif
+
+
+		preenNoteOnUpdateMatrix(voiceToUse, note, velocity);
+
 		switch (newNoteType) {
 		case NEW_NOTE_FREE:
 			voices[voiceToUse]->noteOn(note, velocity, voiceIndex++);
@@ -356,14 +384,16 @@ void Timbre::preenNoteOn(char note, char velocity) {
 			break;
 		}
 
-		// Update voice matrix with midi note and velocity
-		voices[voiceToUse]->matrix.setSource(MATRIX_SOURCE_NOTE1, midiNoteScale[0][timbreNumber][note]);
-        voices[voiceToUse]->matrix.setSource(MATRIX_SOURCE_NOTE2, midiNoteScale[1][timbreNumber][note]);
-		voices[voiceToUse]->matrix.setSource(MATRIX_SOURCE_VELOCITY, INV127*velocity);
 		this->lastPlayedNote = voiceToUse;
 	}
 }
 
+void Timbre::preenNoteOnUpdateMatrix(int voiceToUse, int note, int velocity) {
+    // Update voice matrix with midi note and velocity
+    voices[voiceToUse]->matrix.setSource(MATRIX_SOURCE_NOTE1, midiNoteScale[0][timbreNumber][note]);
+    voices[voiceToUse]->matrix.setSource(MATRIX_SOURCE_NOTE2, midiNoteScale[1][timbreNumber][note]);
+    voices[voiceToUse]->matrix.setSource(MATRIX_SOURCE_VELOCITY, INV127*velocity);
+}
 
 void Timbre::preenNoteOff(char note) {
 	int iNov = (int) params.engine1.numberOfVoice;
@@ -486,6 +516,12 @@ void Timbre::cleanNextBlock() {
 }
 
 
+void Timbre::prepareMatrixForNewBlock() {
+    for (int k = 0; k < params.engine1.numberOfVoice; k++) {
+        voices[voiceNumber[k]]->prepareMatrixForNewBlock();
+    }
+}
+
 
 #define GATE_INC 0.02f
 
@@ -598,6 +634,9 @@ void Timbre::fxAfterBlock(float ratioTimbres) {
     	if (unlikely(fxParam1 > 1.0)) {
     		fxParam1 = 1.0;
     	}
+        if (unlikely(fxParam1 < 0.0f)) {
+            fxParam1 = 0.0f;
+        }
     	float pattern = (1 - fxParam2 * fxParam1);
 
     	float *sp = this->sampleBlock;
@@ -740,27 +779,57 @@ void Timbre::fxAfterBlock(float ratioTimbres) {
         // Type : Quantizer / Decimator with smooth control
         // References : Posted by David Lowenfels
 
+        //        function output = crusher( input, normfreq, bits );
+        //            step = 1/2^(bits);
+        //            phasor = 0;
+        //            last = 0;
+        //
+        //            for i = 1:length(input)
+        //               phasor = phasor + normfreq;
+        //               if (phasor >= 1.0)
+        //                  phasor = phasor - 1.0;
+        //                  last = step * floor( input(i)/step + 0.5 ); %quantize
+        //               end
+        //               output(i) = last; %sample and hold
+        //            end
+        //        end
 
-        float fxFreq = params.effect.param1 ;
 
-        float *sp = this->sampleBlock;
-        float sampleR, sampleL;
+        float fxParamTmp = params.effect.param1 + matrixFilterFrequency +.005f;
+        if (unlikely(fxParamTmp > 1.0)) {
+            fxParamTmp = 1.0;
+        }
+        if (unlikely(fxParamTmp < 0.005f)) {
+            fxParamTmp = 0.005f;
+        }
+        fxParamA1 = (fxParamTmp + 9.0f * fxParamA1) * .1f;
+        // Low pass... on the Sampling rate
+        register float fxFreq = fxParamA1;
 
-        float localv0L = v0L;
-        float localv0R = v0R;
-        float localPhase = fxPhase;
-        float localPower = fxParam1;
-        float localStep = fxParam2;
+        register float *sp = this->sampleBlock;
+
+        register float localPhase = fxPhase;
+
+        //        localPower = fxParam1 = pow(2, (int)(1.0f + 15.0f * params.effect.param2));
+        //        localStep = fxParam2 = 1 / fxParam1;
+
+        register float localPower = fxParam1;
+        register float localStep = fxParam2;
+
+        register float localv0L = v0L;
+        register float localv0R = v0R;
+
 
         for (int k=0 ; k < BLOCK_SIZE ; k++) {
             localPhase += fxFreq;
-            if (unlikely(localPhase > 1.0f)) {
+            if (unlikely(localPhase >= 1.0f)) {
                 localPhase -= 1.0f;
                 // Simulate floor by making the conversion always positive
-                int iL =  localPower + ((*sp) * localPower + .5);
-                int iR =  localPower + ((*(sp + 1)) * localPower + .5);
-                localv0L = localStep * (((float)iL) - localPower);
-                localv0R = localStep * (((float)iR) - localPower);
+                // simplify version
+                register int iL =  (*sp) * localPower + .75f;
+                register int iR =  (*(sp + 1)) * localPower + .75f;
+                localv0L = localStep * iL;
+                localv0R = localStep * iR;
             }
 
             *sp++ = localv0L * mixerGain;
@@ -876,28 +945,25 @@ void Timbre::fxAfterBlock(float ratioTimbres) {
 
 
 void Timbre::afterNewParamsLoad() {
-
-
     for (int k = 0; k < params.engine1.numberOfVoice; k++) {
-        voices[k]->afterNewParamsLoad();
+        voices[voiceNumber[k]]->afterNewParamsLoad();
     }
 
-
-	 for (int j=0; j<NUMBER_OF_ENCODERS * 2; j++) {
-		this->env1.reloadADSR(j);
-		this->env2.reloadADSR(j);
-		this->env3.reloadADSR(j);
-		this->env4.reloadADSR(j);
-		this->env5.reloadADSR(j);
-		this->env6.reloadADSR(j);
-	}
+    for (int j=0; j<NUMBER_OF_ENCODERS * 2; j++) {
+        this->env1.reloadADSR(j);
+        this->env2.reloadADSR(j);
+        this->env3.reloadADSR(j);
+        this->env4.reloadADSR(j);
+        this->env5.reloadADSR(j);
+        this->env6.reloadADSR(j);
+    }
 
 
     resetArpeggiator();
     v0L = v1L = 0.0f;
     v0R = v1R = 0.0f;
     for (int k=0; k<NUMBER_OF_ENCODERS; k++) {
-    	setNewEffecParam(k);
+        setNewEffecParam(k);
     }
     // Update midi note scale
     updateMidiNoteScale(0);
@@ -1010,9 +1076,10 @@ void Timbre::setNewEffecParam(int encoder) {
     	break;
     case FILTER_CRUSHER:
     {
-        int fxBit = 1.0f + 15.0f * params.effect.param2;
-        fxParam1 = pow(2, fxBit);
-        fxParam2 = 1 / fxParam1;
+        if (encoder == ENCODER_EFFECT_PARAM2) {
+            fxParam1 = pow(2, (int)(1.0f + 15.0f * params.effect.param2));
+            fxParam2 = 1 / fxParam1;
+        }
         break;
     }
     case FILTER_BP:
@@ -1332,7 +1399,7 @@ void Timbre::setDirection(uint8_t value) {
 
 void Timbre::lfoValueChange(int currentRow, int encoder, float newValue) {
     for (int k = 0; k < params.engine1.numberOfVoice; k++) {
-        voices[k]->lfoValueChange(currentRow, encoder, newValue);
+        voices[voiceNumber[k]]->lfoValueChange(currentRow, encoder, newValue);
     }
 }
 
@@ -1450,7 +1517,7 @@ void Timbre::updateMidiNoteScale(int scale) {
 void Timbre::midiClockContinue(int songPosition) {
 
     for (int k = 0; k < params.engine1.numberOfVoice; k++) {
-        voices[k]->midiClockContinue(songPosition);
+        voices[voiceNumber[k]]->midiClockContinue(songPosition);
     }
 
     this->recomputeNext = ((songPosition&0x1)==0);
@@ -1461,7 +1528,7 @@ void Timbre::midiClockContinue(int songPosition) {
 void Timbre::midiClockStart() {
 
     for (int k = 0; k < params.engine1.numberOfVoice; k++) {
-        voices[k]->midiClockStart();
+        voices[voiceNumber[k]]->midiClockStart();
     }
 
     this->recomputeNext = true;
@@ -1471,7 +1538,7 @@ void Timbre::midiClockStart() {
 void Timbre::midiClockSongPositionStep(int songPosition) {
 
     for (int k = 0; k < params.engine1.numberOfVoice; k++) {
-        voices[k]->midiClockSongPositionStep(songPosition,  this->recomputeNext);
+        voices[voiceNumber[k]]->midiClockSongPositionStep(songPosition,  this->recomputeNext);
     }
 
     if ((songPosition & 0x1)==0) {
@@ -1482,12 +1549,49 @@ void Timbre::midiClockSongPositionStep(int songPosition) {
 
 void Timbre::resetMatrixDestination(float oldValue) {
     for (int k = 0; k < params.engine1.numberOfVoice; k++) {
-        voices[k]->matrix.resetDestination(oldValue);
+        voices[voiceNumber[k]]->matrix.resetDestination(oldValue);
     }
 }
 
 void Timbre::setMatrixSource(enum SourceEnum source, float newValue) {
     for (int k = 0; k < params.engine1.numberOfVoice; k++) {
-        voices[k]->matrix.setSource(source, newValue);
+        voices[voiceNumber[k]]->matrix.setSource(source, newValue);
     }
 }
+
+
+void Timbre::verifyLfoUsed(int encoder, float oldValue, float newValue) {
+    // No need to recompute
+    if (params.engine1.numberOfVoice == 0.0f) {
+        return;
+    }
+    if ((encoder == ENCODER_MATRIX_MUL || encoder == ENCODER_MATRIX_DEST) && oldValue != 0.0f && newValue != 0.0f) {
+        return;
+    }
+
+    for (int lfo=0; lfo < NUMBER_OF_LFO; lfo++) {
+        lfoUSed[lfo] = 0;
+    }
+
+    MatrixRowParams* matrixRows = &params.matrixRowState1;
+    for (int r = 0; r < MATRIX_SIZE; r++) {
+        if (matrixRows[r].source >= MATRIX_SOURCE_LFO1 && matrixRows[r].source <= MATRIX_SOURCE_LFOSEQ2
+                && matrixRows[r].mul != 0.0f
+                && matrixRows[r].destination != 0.0f) {
+            lfoUSed[(int)matrixRows[r].source - MATRIX_SOURCE_LFO1]++;
+        }
+    }
+
+    /*
+    lcd.setCursor(11, 1);
+    lcd.print('>');
+    for (int lfo=0; lfo < NUMBER_OF_LFO; lfo++) {
+        lcd.print((int)lfoUSed[lfo]);
+    }
+    lcd.print('<');
+*/
+
+}
+
+
+
