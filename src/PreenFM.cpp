@@ -28,7 +28,7 @@
 #include "Synth.h"
 #include "RingBuffer.h"
 #include "MidiDecoder.h"
-#include "UsbKey.h"
+#include "Storage.h"
 #include "Hexter.h"
 
 #include "ff.h"
@@ -43,7 +43,7 @@ LiquidCrystal      lcd ;
 FMDisplay          fmDisplay ;
 MidiDecoder        midiDecoder;
 Encoders           encoders ;
-UsbKey             usbKey ;
+Storage            usbKey ;
 Hexter             hexter;
 
 
@@ -136,16 +136,24 @@ void setup() {
     synthState.setHexter(&hexter);
 
     usbKey.init(synth.getTimbre(0)->getParamRaw(), synth.getTimbre(1)->getParamRaw(), synth.getTimbre(2)->getParamRaw(), synth.getTimbre(3)->getParamRaw());
-    usbKey.setSysexSender(&midiDecoder);
+    usbKey.getPatchBank()->setSysexSender(&midiDecoder);
     // usbKey and hexter needs to know if arpeggiator must be loaded and saved
-    usbKey.setArpeggiatorPartOfThePreset(&synthState.fullState.midiConfigValue[MIDICONFIG_ARPEGGIATOR_IN_PRESET]);
+    usbKey.getPatchBank()->setArpeggiatorPartOfThePreset(&synthState.fullState.midiConfigValue[MIDICONFIG_ARPEGGIATOR_IN_PRESET]);
     hexter.setArpeggiatorPartOfThePreset(&synthState.fullState.midiConfigValue[MIDICONFIG_ARPEGGIATOR_IN_PRESET]);
-    usbKey.loadConfig(synthState.fullState.midiConfigValue);
+    usbKey.getConfigurationFile()->loadConfig(synthState.fullState.midiConfigValue);
+    usbKey.getConfigurationFile()->loadScalaConfig(&synthState.fullState.scalaScaleConfig);
+
+    // Load scala scales if enabled
+    if (synthState.fullState.scalaScaleConfig.scalaEnabled) {
+    	usbKey.getScalaFile()->loadScalaScale(&synthState.fullState.scalaScaleConfig);
+    }
 
     synth.buildNewSampleBlock();
     synth.buildNewSampleBlock();
 
     // shorten the release value for init sound...
+    float v1 = ((OneSynthParams*)synth.getTimbre(0)->getParamRaw())->env1b.releaseTime;
+    float v2 = ((OneSynthParams*)synth.getTimbre(0)->getParamRaw())->env4b.releaseTime;
     ((OneSynthParams*)synth.getTimbre(0)->getParamRaw())->env1b.releaseTime = 1.1f;
     ((OneSynthParams*)synth.getTimbre(0)->getParamRaw())->env4b.releaseTime = 0.8f;
 
@@ -240,9 +248,18 @@ void setup() {
     	USBD_Init(&usbOTGDevice, USB_OTG_FS_CORE_ID, &usbdMidiDescriptor, &midiCallback, &midiStreamingUsrCallback);
     }
 
-    if (usbKey.loadDefaultCombo()) {
-    	synthState.propagateAfterNewComboLoad();
-    }
+    // Load default combo if any
+    usbKey.getComboBank()->loadDefaultCombo();
+    // Load User waveforms if any
+    usbKey.getUserWaveform()->loadUserWaveforms();
+    // In any case init tables
+    synthState.propagateAfterNewComboLoad();
+
+    // PUT BACK
+    // shorten the release value for init sound...
+    ((OneSynthParams*)synth.getTimbre(0)->getParamRaw())->env1b.releaseTime = v1;
+    ((OneSynthParams*)synth.getTimbre(0)->getParamRaw())->env4b.releaseTime = v2;
+
 
     fmDisplay.init(&lcd, &usbKey);
 

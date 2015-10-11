@@ -36,11 +36,10 @@ float envExponential[] = {
 };
 
 
-void Env::init(Matrix* matrix, struct EnvelopeParamsA *envParamsA, struct EnvelopeParamsB *envParamsB, DestinationEnum da) {
-    this->destAttack = da;
-    this->matrix = matrix;
+void Env::init(struct EnvelopeParamsA *envParamsA, struct EnvelopeParamsB *envParamsB, uint8_t envNumber) {
 	this->envParamsA = envParamsA;
 	this->envParamsB = envParamsB;
+	this->envNumber = envNumber;
 
     if (initTab == 0) {
         initTab = 1;

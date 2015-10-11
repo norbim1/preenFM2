@@ -351,7 +351,7 @@ void LiquidCrystal::print(float f) {
     }
     if (f < 10.0f) {
         int integer = (int) f;
-        print((char)integer+'0');
+        print((char)((char)integer+'0'));
         print('.');
         f -= integer;
         int valueTimes100 = (int)(f*100+.0005);
@@ -369,6 +369,20 @@ void LiquidCrystal::print(float f) {
         print((int)(f*10));
     }
 }
+
+void LiquidCrystal::printWithOneDecimal(float f) {
+
+    if (f < 10.0f) {
+        print('0');
+    }
+    int integer = (int) f;
+    print(integer);
+    print('.');
+    f -= integer;
+    int valueTimes10 = (int)(f*10+.0005);
+    print(valueTimes10);
+}
+
 
 
 /************ low level data pushing commands **********/

@@ -26,10 +26,9 @@ Lfo::Lfo() {
 }
 
 void Lfo::init(Matrix *matrix, SourceEnum source, DestinationEnum dest) {
-    this->destination = dest;
+    this->destination = (uint8_t)dest;
+    this->source = (uint8_t)source;
 	this->matrix = matrix;
-	this->source = source;
-	this->index = 0;
 
     if (initTab == 0) {
         initTab = 1;

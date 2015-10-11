@@ -109,6 +109,7 @@
   *
   ******************************************************************************
   * Modified by Xavier Hosxe for the FEZ Cerb40 - PreenFM mk2
+  * Modified by Norbert Marosi for the PreenFM mk2 STM32F4Discovery port
   */
 
 
@@ -136,15 +137,15 @@
 #else
 
 /* PLL_VCO = (HSE_VALUE or HSI_VALUE / PLL_M) * PLL_N */
-/* 216 MHz overclocked */
+/* 240 MHz overclocked */
 #define PLL_M      8
-#define PLL_N      432 //384
+#define PLL_N      480 //432 //384
 
 /* SYSCLK = PLL_VCO / PLL_P */
 #define PLL_P      2
 
 /* USB OTG FS, SDIO and RNG Clock =  PLL_VCO / PLLQ */
-#define PLL_Q      9 //8
+#define PLL_Q      10 //9 //8
 
 #endif
 

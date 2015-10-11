@@ -147,6 +147,13 @@ enum {
     ENCODER_STEPSEQ_GATE
 };
 
+enum {
+    ENCODER_NOTECURVE_BEFORE = 0,
+    ENCODER_NOTECURVE_BREAK_NOTE,
+    ENCODER_NOTECURVE_AFTER
+};
+
+
 
 typedef unsigned char uchar;
 
@@ -193,18 +200,36 @@ enum OscShape {
     OSC_SHAPE_SIN_POS,
     OSC_SHAPE_RAND,
 	OSC_SHAPE_OFF,
+    OSC_SHAPE_USER1,
+    OSC_SHAPE_USER2,
+    OSC_SHAPE_USER3,
+    OSC_SHAPE_USER4,
+    OSC_SHAPE_USER5,
+    OSC_SHAPE_USER6,
 	OSC_SHAPE_LAST
 };
 
 enum LfoType {
 	LFO_SIN = 0,
-	LFO_RAMP,
 	LFO_SAW,
+	LFO_TRIANGLE,
 	LFO_SQUARE,
 	LFO_RANDOM,
 	LFO_TYPE_MAX
 };
 
+// const char* midiNoteCurves[] =  { "Flat", "+Ln ", "+Ln2", "+Exp", "-Ln ", "-Ln2", "-Exp" };
+
+enum MidiNoteCurve {
+    MIDI_NOTE_CURVE_FLAT = 0,
+    MIDI_NOTE_CURVE_LINEAR,
+    MIDI_NOTE_CURVE_LINEAR2,
+    MIDI_NOTE_CURVE_EXP,
+    MIDI_NOTE_CURVE_M_LINEAR,
+    MIDI_NOTE_CURVE_M_LINEAR2,
+    MIDI_NOTE_CURVE_M_EXP,
+    MIDI_NOTE_CURVE_MAX
+};
 
 enum OscFrequencyType {
 	OSC_FT_KEYBOARD = 0,
@@ -453,16 +478,16 @@ public:
 
     void tempoClick();
 
-    void setParamsAndTimbre(struct OneSynthParams *newParams, int newCurrentTimbre, float* performanceValues);
+    void setParamsAndTimbre(struct OneSynthParams *newParams, int newCurrentTimbre);
 
     void resetDisplay();
 
     bool getIsPlayingNote() {
     	return isPlayingNote;
     }
-	void loadPreenFMPatch(int timbre, BankFile const *bank, int patchNumber, struct OneSynthParams* params);
-	void loadDx7Patch(int timbre, BankFile const *bank, int patchNumber, struct OneSynthParams* params);
-	void loadPreenFMCombo(BankFile const *bank, int patchNumber);
+	void loadPreenFMPatch(int timbre, PFM2File const *bank, int patchNumber, struct OneSynthParams* params);
+	void loadDx7Patch(int timbre, PFM2File const *bank, int patchNumber, struct OneSynthParams* params);
+	void loadPreenFMCombo(PFM2File const *bank, int patchNumber);
 	void loadPreenFMPatchFromMidi(int timbre, int bank, int bankLSB, int patchNumber, struct OneSynthParams* params);
 
 	bool newRandomizerValue(int encoder, int ticks);
@@ -470,7 +495,6 @@ public:
 
     int currentTimbre;
     struct OneSynthParams *params;
-    float *performanceValues;
     struct OneSynthParams backupParams;
 	struct FullState fullState;
 	char stepSelect[2];

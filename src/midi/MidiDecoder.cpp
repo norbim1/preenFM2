@@ -32,6 +32,10 @@ extern USB_OTG_CORE_HANDLE          usbOTGDevice;
 uint8_t sysexBuffer[SYSEX_BUFFER_SIZE];
 
 
+#include "LiquidCrystal.h"
+extern LiquidCrystal lcd;
+
+
 #ifdef LCDDEBUG
 
 #include "LiquidCrystal.h"
@@ -281,9 +285,6 @@ void MidiDecoder::midiEventReceived(MidiEvent midiEvent) {
         } else {
             for (int tk = 0; tk< timbreIndex; tk++ ) {
                 this->synth->noteOn(timbres[tk], midiEvent.value[0], midiEvent.value[1]);
-                this->synth->getTimbre(timbres[tk])->getMatrix()->setSource(MATRIX_SOURCE_KEY, INV127*midiEvent.value[0]);
-
-                this->synth->getTimbre(timbres[tk])->getMatrix()->setSource(MATRIX_SOURCE_VELOCITY, INV127*midiEvent.value[1]);
 
                 visualInfo->noteOn(timbres[tk], true);
             }
@@ -300,13 +301,13 @@ void MidiDecoder::midiEventReceived(MidiEvent midiEvent) {
         break;
     case MIDI_AFTER_TOUCH:
         for (int tk = 0; tk< timbreIndex; tk++ ) {
-            this->synth->getTimbre(timbres[tk])->getMatrix()->setSource(MATRIX_SOURCE_AFTERTOUCH, INV127*midiEvent.value[0]);
+            this->synth->getTimbre(timbres[tk])->setMatrixSource(MATRIX_SOURCE_AFTERTOUCH, INV127*midiEvent.value[0]);
         }
         break;
     case MIDI_PITCH_BEND:
         for (int tk = 0; tk< timbreIndex; tk++ ) {
             int pb = ((int) midiEvent.value[1] << 7) + (int) midiEvent.value[0] - 8192;
-            this->synth->getTimbre(timbres[tk])->getMatrix()->setSource(MATRIX_SOURCE_PITCHBEND, (float)pb * .00012207031250000000f  );
+            this->synth->getTimbre(timbres[tk])->setMatrixSource(MATRIX_SOURCE_PITCHBEND, (float)pb * .00012207031250000000f  );
         }
         break;
     case MIDI_PROGRAM_CHANGE:
@@ -336,7 +337,7 @@ void MidiDecoder::controlChange(int timbre, MidiEvent& midiEvent) {
     	bankNumberLSB[timbre] = midiEvent.value[1];
         break;
     case CC_MODWHEEL:
-        this->synth->getTimbre(timbre)->getMatrix()->setSource(MATRIX_SOURCE_MODWHEEL, INV127 * midiEvent.value[1]);
+        this->synth->getTimbre(timbre)->setMatrixSource(MATRIX_SOURCE_MODWHEEL, INV127 * midiEvent.value[1]);
         break;
     case CC_ALL_NOTES_OFF:
         this->synth->allNoteOff(timbre);
@@ -561,7 +562,7 @@ void MidiDecoder::sendCurrentPatchAsNrpns(int timbre) {
                 valueToSend = floatValue + .1f ;
             }
             // MSB / LSB
-            int paramNumber =  currentrow * NUMBER_OF_ENCODERS + encoder;
+            int paramNumber =  getNrpnRowFromParamRow(currentrow) * NUMBER_OF_ENCODERS + encoder;
             // Value to send must be positive
 
             // NRPN is 4 control change
@@ -613,10 +614,10 @@ void MidiDecoder::decodeNrpn(int timbre) {
     if (this->currentNrpn[timbre].paramMSB < 2) {
         unsigned int index = (this->currentNrpn[timbre].paramMSB << 7) + this->currentNrpn[timbre].paramLSB;
         float value = (this->currentNrpn[timbre].valueMSB << 7) + this->currentNrpn[timbre].valueLSB;
-        unsigned int row = index / NUMBER_OF_ENCODERS;
+        unsigned int row = getParamRowFromNrpnRow(index / NUMBER_OF_ENCODERS);
         unsigned int encoder = index % NUMBER_OF_ENCODERS;
-        struct ParameterDisplay* param = &(allParameterRows.row[row]->params[encoder]);
 
+        struct ParameterDisplay* param = &(allParameterRows.row[row]->params[encoder]);
 
         if (row < NUMBER_OF_ROWS) {
             if (param->displayType == DISPLAY_TYPE_FLOAT
@@ -625,6 +626,7 @@ void MidiDecoder::decodeNrpn(int timbre) {
                     || param->displayType == DISPLAY_TYPE_LFO_KSYN) {
             	value = value * .01f + param->minValue;
             }
+
             this->synth->setNewValueFromMidi(timbre, row, encoder, value);
         } else if (index >= 228 && index < 240) {
             this->synth->setNewSymbolInPresetName(timbre, index - 228, value);
@@ -644,13 +646,12 @@ void MidiDecoder::decodeNrpn(int timbre) {
 }
 
 void MidiDecoder::newParamValueFromExternal(int timbre, int currentrow, int encoder, ParameterDisplay* param, float oldValue, float newValue) {
-    // Do nothing here...
+    // Nothing to do
 }
 
 
 void MidiDecoder::newParamValue(int timbre, int currentrow,
     int encoder, ParameterDisplay* param, float oldValue, float newValue) {
-
     int sendCCOrNRPN = this->synthState->fullState.midiConfigValue[MIDICONFIG_SENDS] ;
     int channel = this->synthState->fullState.midiConfigValue[MIDICONFIG_CHANNEL1 + timbre] -1;
 
@@ -665,7 +666,7 @@ void MidiDecoder::newParamValue(int timbre, int currentrow,
     // Do we send NRPN ?
     if (sendCCOrNRPN == 2) {
         // Special case for Step sequencer
-        if (currentrow >= ROW_LFOSEQ1 && encoder >=2) {
+        if ((currentrow == ROW_LFOSEQ1 || currentrow == ROW_LFOSEQ2) && encoder >=2) {
             if (encoder == 2) {
                 return;
             }
@@ -700,7 +701,7 @@ void MidiDecoder::newParamValue(int timbre, int currentrow,
                 valueToSend = newValue + .1f ;
             }
             // MSB / LSB
-            int paramNumber =  currentrow * NUMBER_OF_ENCODERS + encoder;
+            int paramNumber =  getNrpnRowFromParamRow(currentrow) * NUMBER_OF_ENCODERS + encoder;
             // Value to send must be positive
 
             // NRPN is 4 control change
@@ -936,4 +937,38 @@ void MidiDecoder::flushMidiOut() {
 
 	USART_ITConfig(USART3, USART_IT_TXE, ENABLE);
 }
+
+int MidiDecoder::getNrpnRowFromParamRow(int paramRow) {
+    switch (paramRow) {
+    case ROW_LFOPHASES:
+        // Move after ROW_LFOSEQ2
+        return paramRow + 4;
+    case ROW_LFOENV1:
+    case ROW_LFOENV2:
+    case ROW_LFOSEQ1:
+    case ROW_LFOSEQ2:
+        // Move before ROW_LFOPHASE
+        return paramRow - 1;
+    default:
+        return paramRow;
+    }
+}
+
+int MidiDecoder::getParamRowFromNrpnRow(int nrpmRow) {
+    // Move back row
+    switch (nrpmRow) {
+    case ROW_LFOPHASES + 4:
+        return ROW_LFOPHASES;
+    case ROW_LFOENV1 - 1:
+    case ROW_LFOENV2 - 1:
+    case ROW_LFOSEQ1 - 1:
+    case ROW_LFOSEQ2 - 1:
+        return nrpmRow + 1;
+    default:
+        return nrpmRow;
+    }
+    return nrpmRow;
+}
+
+
 

@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 
+// #define DEBUG 1
+
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
 #define ARRAY_SIZE(x)  ( sizeof(x) / sizeof((x)[0]) )
@@ -29,10 +31,9 @@
 #define NUMBER_OF_ENCODERS 4
 #define NUMBER_OF_BUTTONS 8
 
-#define SYSEX_NEW_PFM2_BYTE_PATCH 5
 
 
-#define MAX_NUMBER_OF_VOICES 16
+#define MAX_NUMBER_OF_VOICES 14
 #define MAX_NUMBER_OF_OPERATORS 48
 
 #define NUMBER_OF_TIMBRES 4
@@ -50,25 +51,23 @@
 #define PREENFM_FREQUENCY_INVERSED 1.0f/PREENFM_FREQUENCY
 #define PREENFM_FREQUENCY_INVERSED_LFO PREENFM_FREQUENCY_INVERSED*32.0f
 
-#define NUMBER_OF_WAVETABLES 8
+#define NUMBER_OF_WAVETABLES 14
 
-#ifndef BOOTLOADER
-#define NUMBEROFDX7BANKS 256
-#define NUMBEROFPREENFMBANKS 64
-#define NUMBEROFPREENFMCOMBOS 8
-#endif
-
-#ifdef BOOTLOADER
-#define NUMBEROFDX7BANKS 1
-#define NUMBEROFPREENFMBANKS 1
-#define NUMBEROFPREENFMCOMBOS 1
-#endif
 
 typedef enum {
     FILE_OK = 0,
     FILE_READ_ONLY,
     FILE_EMPTY
 } FileType;
+
+
+struct WaveTable {
+    float* table;
+    int max;
+    float useFreq;
+    float floatToAdd;
+    float precomputedValue;
+};
 
 struct AlgoInformation {
     unsigned char osc;
@@ -89,10 +88,7 @@ enum {
     ROW_ARPEGGIATOR2,
     ROW_ARPEGGIATOR3,
     ROW_EFFECT,
-    ROW_ENGINE_LAST = ROW_EFFECT
-};
-
-enum {
+    ROW_ENGINE_LAST = ROW_EFFECT,
     ROW_OSC_FIRST = ROW_ENGINE_LAST+1,
     ROW_OSC1 = ROW_OSC_FIRST,
     ROW_OSC2 ,
@@ -100,11 +96,7 @@ enum {
     ROW_OSC4 ,
     ROW_OSC5 ,
     ROW_OSC6 ,
-    ROW_OSC_LAST = ROW_OSC6
-};
-
-
-enum {
+    ROW_OSC_LAST = ROW_OSC6,
     ROW_ENV_FIRST = ROW_OSC_LAST+1,
     ROW_ENV1a = ROW_ENV_FIRST,
     ROW_ENV1b,
@@ -118,10 +110,7 @@ enum {
     ROW_ENV5b ,
     ROW_ENV6a ,
     ROW_ENV6b ,
-    ROW_ENV_LAST = ROW_ENV6b
-};
-
-enum {
+    ROW_ENV_LAST = ROW_ENV6b,
     ROW_MATRIX_FIRST = ROW_ENV_LAST+1,
     ROW_MATRIX1 = ROW_MATRIX_FIRST,
     ROW_MATRIX2 ,
@@ -135,24 +124,20 @@ enum {
     ROW_MATRIX10 ,
     ROW_MATRIX11 ,
     ROW_MATRIX12 ,
-    ROW_MATRIX_LAST = ROW_MATRIX12
-};
-
-enum {
-	ROW_PERFORMANCE1 = ROW_MATRIX_LAST + 1
-};
-
-
-enum {
+    ROW_MATRIX_LAST = ROW_MATRIX12,
+	ROW_PERFORMANCE1 = ROW_MATRIX_LAST + 1,
     ROW_LFO_FIRST = ROW_PERFORMANCE1+1,
     ROW_LFOOSC1 = ROW_LFO_FIRST,
     ROW_LFOOSC2 ,
     ROW_LFOOSC3 ,
+    ROW_LFOPHASES,
     ROW_LFOENV1 ,
     ROW_LFOENV2 ,
     ROW_LFOSEQ1 ,
     ROW_LFOSEQ2 ,
-    ROW_LFO_LAST = ROW_LFOSEQ2
+    ROW_MIDINOTE1CURVE,
+    ROW_MIDINOTE2CURVE,
+    ROW_LFO_LAST = ROW_MIDINOTE2CURVE
 };
 
 
@@ -378,6 +363,19 @@ struct PerformanceRowParams {
 	float perf4;
 };
 
+struct LfoPhaseRowParams {
+    float phaseLfo1;
+    float phaseLfo2;
+    float phaseLfo3;
+    float unused1;
+};
+
+struct MidiNoteCurveRowParams {
+    float curveBefore;
+    float breakNote;
+    float curveAfter;
+    float unused1;
+};
 
 
 struct OneSynthParams {
@@ -426,10 +424,13 @@ struct OneSynthParams {
     struct LfoParams lfoOsc1;
     struct LfoParams lfoOsc2;
     struct LfoParams lfoOsc3;
+    struct LfoPhaseRowParams lfoPhases;
     struct EnvelopeParams lfoEnv1;
     struct Envelope2Params lfoEnv2;
     struct StepSequencerParams lfoSeq1;
     struct StepSequencerParams lfoSeq2;
+    struct MidiNoteCurveRowParams midiNote1Curve;
+    struct MidiNoteCurveRowParams midiNote2Curve;
     struct StepSequencerSteps lfoSteps1;
     struct StepSequencerSteps lfoSteps2;
     char presetName[13];
@@ -448,11 +449,12 @@ enum SourceEnum {
     MATRIX_SOURCE_PITCHBEND,
     MATRIX_SOURCE_AFTERTOUCH,
     MATRIX_SOURCE_VELOCITY,
-    MATRIX_SOURCE_KEY,
+    MATRIX_SOURCE_NOTE1,
     MATRIX_SOURCE_CC1,
     MATRIX_SOURCE_CC2,
     MATRIX_SOURCE_CC3,
     MATRIX_SOURCE_CC4,
+    MATRIX_SOURCE_NOTE2,
     MATRIX_SOURCE_MAX
 };
 
@@ -505,6 +507,14 @@ enum DestinationEnum {
 };
 
 int strcmp(const char *s1, const char *s2);
+
+// In separate structure to be easily sent to config saver/loader
+struct ScalaScaleConfig {
+    const struct PFM2File* scalaFile;
+    float scalaFreq;
+    bool scalaEnabled;
+    bool keyboardMapping;
+};
 
 
 #endif /* COMMON_H_ */
