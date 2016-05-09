@@ -111,8 +111,8 @@ Encoders::Encoders() {
 
 
 	for (int k=0; k<NUMBER_OF_ENCODERS; k++) {
-		encoderBit1[k] = encoderPins[k*2];//1 << (encoderPins[k*2] -1);
-		encoderBit2[k] = encoderPins[k*2+1];//1 << (encoderPins[k*2 + 1] -1);
+		encoderBit1[k] = encoderPins[k*2];
+		encoderBit2[k] = encoderPins[k*2+1];
 		encoderPort1[k] = encoderPorts[k*2];
 		encoderPort2[k] = encoderPorts[k*2+1];
 		lastMove[k] = LAST_MOVE_NONE;

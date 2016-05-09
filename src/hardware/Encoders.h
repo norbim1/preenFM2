@@ -45,22 +45,22 @@
 
 //#define BUTTON_PORT GPIOE
 
-#define ENC1_0_PIN  GPIO_Pin_1
+#define ENC1_0_PIN  GPIO_Pin_2
 #define ENC1_0_PORT GPIOC
-#define ENC1_2_PIN  GPIO_Pin_2
+#define ENC1_2_PIN  GPIO_Pin_1
 #define ENC1_2_PORT GPIOC
-#define ENC2_0_PIN  GPIO_Pin_2
-#define ENC2_0_PORT GPIOA
-#define ENC2_2_PIN  GPIO_Pin_4
-#define ENC2_2_PORT GPIOC
-#define ENC3_0_PIN  GPIO_Pin_2
+#define ENC2_0_PIN  GPIO_Pin_4
+#define ENC2_0_PORT GPIOC
+#define ENC2_2_PIN  GPIO_Pin_2
+#define ENC2_2_PORT GPIOA
+#define ENC3_0_PIN  GPIO_Pin_4
 #define ENC3_0_PORT GPIOE
-#define ENC3_2_PIN  GPIO_Pin_4
+#define ENC3_2_PIN  GPIO_Pin_2
 #define ENC3_2_PORT GPIOE
-#define ENC4_0_PIN  GPIO_Pin_6
-#define ENC4_0_PORT GPIOE
-#define ENC4_2_PIN  GPIO_Pin_14
-#define ENC4_2_PORT GPIOC
+#define ENC4_0_PIN  GPIO_Pin_14
+#define ENC4_0_PORT GPIOC
+#define ENC4_2_PIN  GPIO_Pin_6
+#define ENC4_2_PORT GPIOE
 
 //#define ENC_PORT GPIOD
 
