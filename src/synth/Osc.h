@@ -36,6 +36,7 @@ struct OscState {
 
 
 extern struct WaveTable waveTables[];
+extern float exp2_harm[];
 
 
 class Osc : public SynthStateAware
@@ -50,8 +51,10 @@ public:
     void glideToNote(struct OscState* oscState, int note);
     void glideStep(struct OscState* oscState, float phase);
 
-    inline void calculateFrequencyWithMatrix(struct OscState *oscState, Matrix* matrix) {
-		oscState->mainFrequencyPlusMatrix = oscState->mainFrequency + ((oscState->mainFrequency   * (matrix->getDestination(destFreq) + matrix->getDestination(ALL_OSC_FREQ)))) * .1f;
+    inline void calculateFrequencyWithMatrix(struct OscState *oscState, Matrix* matrix, float expHarm) {
+        oscState->mainFrequencyPlusMatrix = oscState->mainFrequency;
+        oscState->mainFrequencyPlusMatrix *= expHarm;
+        oscState->mainFrequencyPlusMatrix +=  (oscState->mainFrequency  * (matrix->getDestination(destFreq) + matrix->getDestination(ALL_OSC_FREQ)) * .1f);
     }
 
     inline float getNextSample(struct OscState *oscState)  {
@@ -211,5 +214,3 @@ private:
     static int oscValuesCpt;
     OscillatorParams* oscillator;
 };
-
-

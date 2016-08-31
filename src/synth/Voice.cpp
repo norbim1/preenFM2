@@ -44,6 +44,8 @@ Voice::Voice(void)
 	}
 	freqAi = freqAo = 0.0f;
 	freqBi = freqBo = 0.0f;
+	freqHarm = 1.0f;
+	targetFreqHarm = 0.0f;
 }
 
 
@@ -128,7 +130,6 @@ void Voice::glide() {
 
 void Voice::noteOn(short newNote, short velocity, unsigned int index) {
 
-
 	this->released = false;
 	this->playing = true;
 	this->note = newNote;
@@ -155,12 +156,12 @@ void Voice::noteOn(short newNote, short velocity, unsigned int index) {
 	currentTimbre->osc6.newNote(&oscState6, newNote);
 
 	/* Firmware v2.0  Env must be initialized after matrix computation so in
-	currentTimbre->env1.noteOn(&envState1, &matrix);
-	currentTimbre->env2.noteOn(&envState2, &matrix);
-	currentTimbre->env3.noteOn(&envState3, &matrix);
-	currentTimbre->env4.noteOn(&envState4, &matrix);
-	currentTimbre->env5.noteOn(&envState5, &matrix);
-	currentTimbre->env6.noteOn(&envState6, &matrix);
+	currentTimbre->env1.noteOn(&envState1, &matrix, freqHarm);
+	currentTimbre->env2.noteOn(&envState2, &matrix, freqHarm);
+	currentTimbre->env3.noteOn(&envState3, &matrix, freqHarm);
+	currentTimbre->env4.noteOn(&envState4, &matrix, freqHarm);
+	currentTimbre->env5.noteOn(&envState5, &matrix, freqHarm);
+	currentTimbre->env6.noteOn(&envState6, &matrix, freqHarm);
 	*/
 	// Tell nextBlock() to init Env...
     this->newNotePlayed = true;
@@ -170,7 +171,12 @@ void Voice::noteOn(short newNote, short velocity, unsigned int index) {
 
 void Voice::endNoteOrBeginNextOne() {
     if (this->newNotePending) {
-        noteOn(nextPendingNote, nextVelocity, index);
+		if (nextPendingNote >=0) {
+        	noteOn(nextPendingNote, nextVelocity, index);
+		} else {
+		    // Note off have already been received....
+			this->playing = false;
+		}
         this->newNotePending = false;
     } else {
         this->playing = false;
@@ -191,23 +197,34 @@ void Voice::glideFirstNoteOff() {
 	this->nextGlidingNote = 0;
 }
 
+
 void Voice::noteOff() {
+
 	if (unlikely(!this->playing)) {
 		return;
 	}
-	this->released = true;
-	this->nextPendingNote = 0;
-	this->gliding = false;
-	this->holdedByPedal = false;
+	if (likely(!this->newNotePending)) {
+        if (this->newNotePlayed) {
+            // Note hasn't played
+            killNow();
+            return;
+        }
+		this->released = true;
+		this->gliding = false;
+		this->holdedByPedal = false;
 
-	currentTimbre->env1.noteOff(&envState1, &matrix);
-	currentTimbre->env2.noteOff(&envState2, &matrix);
-	currentTimbre->env3.noteOff(&envState3, &matrix);
-	currentTimbre->env4.noteOff(&envState4, &matrix);
-	currentTimbre->env5.noteOff(&envState5, &matrix);
-	currentTimbre->env6.noteOff(&envState6, &matrix);
+		currentTimbre->env1.noteOff(&envState1, &matrix);
+		currentTimbre->env2.noteOff(&envState2, &matrix);
+		currentTimbre->env3.noteOff(&envState3, &matrix);
+		currentTimbre->env4.noteOff(&envState4, &matrix);
+		currentTimbre->env5.noteOff(&envState5, &matrix);
+		currentTimbre->env6.noteOff(&envState6, &matrix);
 
-	lfoNoteOff();
+		lfoNoteOff();
+	} else {
+		// We receive a note off before the note actually started
+		this->nextPendingNote = -1;
+	}
 }
 
 void Voice::killNow() {
@@ -260,6 +277,15 @@ void Voice::nextBlock() {
 
 
 
+    if (matrix.getDestination(ALL_OSC_FREQ_HARM) != targetFreqHarm)  {
+        targetFreqHarm = matrix.getDestination(ALL_OSC_FREQ_HARM);
+        float findex = 512 + targetFreqHarm * 20;
+        int index = findex;
+        float fp = findex - index;
+        freqHarm = (exp2_harm[index]* (1.0f-fp) + exp2_harm[index + 1] * fp );
+    }
+
+
 	switch ((int)currentTimbre->params.engine1.algo) {
 
 	case ALGO1:
@@ -280,9 +306,9 @@ void Voice::nextBlock() {
 		float voiceIm2 = this->im2 + modulationIndex2;
 		float voiceIm3 = this->im3 + modulationIndex3;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -353,9 +379,9 @@ void Voice::nextBlock() {
 		float voiceIm1 = this->im1 + modulationIndex1;
 		float voiceIm2 = this->im2 + modulationIndex2;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -420,10 +446,10 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -508,10 +534,10 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -599,11 +625,11 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -687,10 +713,10 @@ void Voice::nextBlock() {
 		float voiceIm2 = this->im2 + modulationIndex2;
 		float voiceIm3 = this->im3 + modulationIndex3;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -769,12 +795,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 
 		env1Value = this->env1ValueMem;
@@ -879,12 +905,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -993,12 +1019,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -1118,12 +1144,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -1246,12 +1272,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -1366,12 +1392,12 @@ void Voice::nextBlock() {
 		float voiceIm2 = this->im2 + modulationIndex2;
 		float voiceIm3 = this->im3 + modulationIndex3;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -1471,12 +1497,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -1587,12 +1613,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -1702,12 +1728,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -1811,12 +1837,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -1931,12 +1957,12 @@ void Voice::nextBlock() {
 		float voiceIm4 = this->im4 + modulationIndex4;
 		float voiceIm5 = this->im5 + modulationIndex5;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -2059,12 +2085,12 @@ void Voice::nextBlock() {
 		float voiceIm4 = this->im4 + modulationIndex4;
 		float voiceIm5 = this->im5 + modulationIndex5;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -2185,12 +2211,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -2294,12 +2320,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -2398,12 +2424,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -2496,12 +2522,12 @@ void Voice::nextBlock() {
 		float voiceIm3 = this->im3 + modulationIndex3;
 		float voiceIm4 = this->im4 + modulationIndex4;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -2594,12 +2620,12 @@ void Voice::nextBlock() {
 		float voiceIm2 = this->im2 + modulationIndex2;
 		float voiceIm3 = this->im3 + modulationIndex3;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -2699,12 +2725,12 @@ void Voice::nextBlock() {
 		float voiceIm2 = this->im2 + modulationIndex2;
 		float voiceIm3 = this->im3 + modulationIndex3;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -2811,12 +2837,12 @@ void Voice::nextBlock() {
 		float voiceIm1 = this->im1 + modulationIndex1;
 		float voiceIm2 = this->im2 + modulationIndex2;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -2917,12 +2943,12 @@ void Voice::nextBlock() {
 		float voiceIm1 = this->im1 + modulationIndex1;
 		float voiceIm2 = this->im2 + modulationIndex2;
 
-		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+		currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+		currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+		currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+		currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+		currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+		currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 		env1Value = this->env1ValueMem;
 		envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -3023,12 +3049,12 @@ void Voice::nextBlock() {
 
 		 */
 		 {
-			 currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-			 currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-			 currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-			 currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-			 currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-			 currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+			 currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+			 currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+			 currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+			 currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+			 currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+			 currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 			env1Value = this->env1ValueMem;
 			envNextValue = currentTimbre->env1.getNextAmpExp(&envState1);
@@ -3117,12 +3143,12 @@ void Voice::nextBlock() {
 
 		 */
 		 {
-			currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix);
-			currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix);
-			currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix);
-			currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix);
-			currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix);
-			currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix);
+			currentTimbre->osc1.calculateFrequencyWithMatrix(&oscState1, &matrix, freqHarm);
+			currentTimbre->osc2.calculateFrequencyWithMatrix(&oscState2, &matrix, freqHarm);
+			currentTimbre->osc3.calculateFrequencyWithMatrix(&oscState3, &matrix, freqHarm);
+			currentTimbre->osc4.calculateFrequencyWithMatrix(&oscState4, &matrix, freqHarm);
+			currentTimbre->osc5.calculateFrequencyWithMatrix(&oscState5, &matrix, freqHarm);
+			currentTimbre->osc6.calculateFrequencyWithMatrix(&oscState6, &matrix, freqHarm);
 
 			float voiceIm1 = this->im1 + modulationIndex1;
 
@@ -3230,5 +3256,3 @@ void Voice::setCurrentTimbre(Timbre *timbre) {
         lfoStepSeq[k].init(stepseqparams[k], stepseqs[k], &matrix, (SourceEnum)(MATRIX_SOURCE_LFOSEQ1+k), (DestinationEnum)(LFOSEQ1_GATE+k));
     }
 }
-
-
