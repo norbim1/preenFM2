@@ -49,6 +49,7 @@ enum AllControlChange {
     CC_MODWHEEL = 1,
     CC_VOLUME = 7,
     CC_PAN = 10,
+    CC_BREATH = 2,
     CC_ALGO = 16,
     CC_IM1,
     CC_IM2,
