@@ -726,9 +726,9 @@ void SynthState::encoderTurnedWhileButtonPressed(int encoder, int ticks, int but
             }
             break;
         case BUTTON_BACK:
+        case BUTTON_ENCODER:
             encoderTurned(encoder, ticks * 10);
             break;
-        case BUTTON_ENCODER:
         case BUTTON_MENUSELECT:
         {
             if (currentRow == ROW_ENGINE_FIRST) {
