@@ -150,8 +150,12 @@ enum {
 	LFO_SEQ_MIDICLOCK_TIME_4,
 };
 
+#define LFO_FREQ_MAX  99.9f
+#define LFO_FREQ_MAX_TIMES_10 (int)(LFO_FREQ_MAX*10.0f)
+
 enum LfoMidiClockMc {
-	LFO_MIDICLOCK_MC_DIV_16 = 241,
+    LFO_BEFORE_MIDI_CLOCK = LFO_FREQ_MAX_TIMES_10,
+	LFO_MIDICLOCK_MC_DIV_16, // 1000
 	LFO_MIDICLOCK_MC_DIV_8,
 	LFO_MIDICLOCK_MC_DIV_4,
 	LFO_MIDICLOCK_MC_DIV_2,
@@ -177,7 +181,13 @@ enum {
 extern const struct OneSynthParams preenMainPreset;
 extern const struct OneSynthParams defaultPreset;
 extern const char* allChars;
+
 extern struct AlgoInformation algoInformation[];
+
+#define OPERATOR_CARRIER 1
+#define OPERATOR_MODULATOR 2
+extern int algoOpInformation[][NUMBER_OF_OPERATORS];
+
 extern uint8_t sysexTmpMem[];
 extern struct OneSynthParams oneSynthParamsTmp;
 
@@ -506,6 +516,9 @@ enum DestinationEnum {
     FILTER_FREQUENCY,
     ALL_OSC_FREQ_HARM,
     ALL_ENV_DECAY,
+    ALL_ENV_ATTACK_MODULATOR,
+    ALL_ENV_DECAY_MODULATOR,
+    ALL_ENV_RELEASE_MODULATOR,
     DESTINATION_MAX
 };
 

@@ -295,14 +295,14 @@ void FMDisplay::updateEncoderValue(int row, int encoder, ParameterDisplay* param
         lcd->print(param->valueName[newValue]);
         break;
     case DISPLAY_TYPE_FLOAT_LFO_FREQUENCY:
-        if (newFloatValue * 10.0f > 240.0) {
+        if (newFloatValue * 10.0f > LFO_FREQ_MAX_TIMES_10) {
             int stringIndex = newFloatValue * 10.0f + .005f;
             lcd->setCursor(encoder*5, 3);
 #ifdef DEBUG
             if (likely(stringIndex <= LFO_MIDICLOCK_MC_TIME_8)) {
 #endif
 
-                lcd->print(lfoOscMidiClock[stringIndex-241]);
+                lcd->print(lfoOscMidiClock[stringIndex-LFO_FREQ_MAX_TIMES_10-1]);
 #ifdef DEBUG
             } else {
                 lcd->print("#ER#");
@@ -363,6 +363,10 @@ void FMDisplay::updateEncoderValue(int row, int encoder, ParameterDisplay* param
                 newValue = 0;
             }
             printValueWithSpace(newValue);
+
+            // Ftune
+            lcd->setCursor(15, 3);
+            lcd->print("    ");
         } else {
             lcd->setCursor(encoder*5 - 1, 3);
             printFloatWithSpace(newFloatValue);
@@ -710,7 +714,9 @@ void FMDisplay::newParamValue(int timbre, int currentRow, int encoder, Parameter
 
     if (this->synthState->getSynthMode() == SYNTH_MODE_EDIT) {
         if (unlikely(currentRow != this->displayedRow)) {
-            newcurrentRow(timbre, currentRow);
+            // Octobre 2017 : Don't remember when it was usefull.
+            // What i'm sure is that we don't want it with the new 2.08 Copy firmware.
+            // newcurrentRow(timbre, currentRow);
             return;
         }
 
@@ -772,7 +778,9 @@ void FMDisplay::newParamValue(int timbre, int currentRow, int encoder, Parameter
     }
 }
 
+
 void FMDisplay::newcurrentRow(int timbre, int newcurrentRow) {
+
     this->displayedRow = newcurrentRow;
     if (unlikely(wakeUpFromScreenSaver())) {
         return;
