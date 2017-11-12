@@ -479,6 +479,9 @@ void MidiDecoder::controlChange(int timbre, MidiEvent& midiEvent) {
             break;
         case CC_FILTER_PARAM1:
         case CC_FILTER_PARAM2:
+            this->synth->setNewValueFromMidi(timbre, ROW_EFFECT, midiEvent.value[0] - CC_FILTER_PARAM1 + 1,
+                    (float)midiEvent.value[1] * INV127);
+            break;
         case CC_FILTER_GAIN:
             this->synth->setNewValueFromMidi(timbre, ROW_EFFECT, midiEvent.value[0] - CC_FILTER_PARAM1 + 1,
                     (float)midiEvent.value[1] * .01f);
@@ -743,11 +746,11 @@ void MidiDecoder::decodeNrpn(int timbre) {
             }
         }
     } else if (this->currentNrpn[timbre].paramMSB < 4)  {
-        unsigned int whichStepSeq = this->currentNrpn[timbre].paramMSB -2;
+        unsigned int whichStepSeq = this->currentNrpn[timbre].paramMSB - 2;
         unsigned int step = this->currentNrpn[timbre].paramLSB;
         unsigned int value = this->currentNrpn[timbre].valueLSB;
 
-        this->synthState->setNewStepValue(timbre, whichStepSeq, step, value);
+        this->synth->setNewStepValueFromMidi(timbre, whichStepSeq, step, value);
     } else if (this->currentNrpn[timbre].paramMSB == 127 && this->currentNrpn[timbre].paramLSB == 127)  {
         sendCurrentPatchAsNrpns(timbre);
     }
@@ -923,7 +926,11 @@ void MidiDecoder::newParamValue(int timbre, int currentrow,
                 cc.value[1] = newValue + .1f;
             } else {
                 cc.value[0] = CC_FILTER_PARAM1 + encoder - 1;
-                cc.value[1] = newValue * 100.0f + .1f;
+                if (encoder == ENCODER_EFFECT_PARAM3) {
+                    cc.value[1] = newValue * 100.0f + .1f;
+                } else {
+                    cc.value[1] = newValue * 128.0f + .1f;
+                }
             }
             break;
         case ROW_ENV1a:
