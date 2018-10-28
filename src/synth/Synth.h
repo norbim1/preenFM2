@@ -153,6 +153,8 @@ public:
     void setHoldPedal(int timbre, int value);
     void setMidiVolume(int timbre, int value);
     void setMidiPan(int timbre, int value);
+    void setScalaEnable(bool enable);
+    void setScalaScale(int scaleNumber);
 
 #ifdef DEBUG
     void debugVoice();
