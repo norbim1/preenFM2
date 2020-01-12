@@ -243,13 +243,14 @@ void MidiDecoder::newMessageType(unsigned char byte) {
 void MidiDecoder::midiEventReceived(MidiEvent midiEvent) {
     int timbreIndex = 0;
     int timbres[4];
-    char globalMidiChannel = this->synthState->fullState.midiConfigValue[MIDICONFIG_GLOBAL]-1;
     // Just one test for global midi channel to optimize
-    if (unlikely(globalMidiChannel == midiEvent.channel)) {
+    if (unlikely(midiEvent.channel == (this->synthState->fullState.midiConfigValue[MIDICONFIG_GLOBAL]-1))) {
         timbres[timbreIndex++] = 0;
         timbres[timbreIndex++] = 1;
         timbres[timbreIndex++] = 2;
         timbres[timbreIndex++] = 3;
+    } else if (unlikely(midiEvent.channel == (this->synthState->fullState.midiConfigValue[MIDICONFIG_CURRENT_INSTRUMENT]-1))) {
+        timbres[timbreIndex++] = currentTimbre;
     } else {
         if (omniOn[0]
                    || this->synthState->fullState.midiConfigValue[MIDICONFIG_CHANNEL1] == 0
@@ -390,6 +391,9 @@ void MidiDecoder::controlChange(int timbre, MidiEvent& midiEvent) {
         break;
     case CC_SCALA_SCALE:
         this->synth->setScalaScale(midiEvent.value[1]);
+        break;
+    case CC_CURRENT_INSTRUMENT:        
+        this->synth->setCurrentInstrument(midiEvent.value[1]);
         break;
     }
 
@@ -575,7 +579,9 @@ void MidiDecoder::controlChange(int timbre, MidiEvent& midiEvent) {
             this->synth->setNewValueFromMidi(timbre, ROW_ARPEGGIATOR2, ENCODER_ARPEGGIATOR_DURATION,
                     (float)midiEvent.value[1]);
             break;
-
+        case CC_MPE_SLIDE_CC74:
+            this->synth->getTimbre(timbre)->setMatrixSource(MATRIX_SOURCE_MPESLIDE, INV127 * midiEvent.value[1]);
+            break;
         }
     }
 

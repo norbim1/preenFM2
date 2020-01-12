@@ -24,12 +24,17 @@
 #include "LfoEnv.h"
 #include "LfoStepSeq.h"
 
+#ifdef CVIN
+#include "CVIn.h"
+#include "VisualInfo.h"
+#endif
+
 #include "SynthParamListener.h"
 #include "SynthStateAware.h"
 
 #define UINT_MAX  4294967295
 
-class Synth : public SynthParamListener, public SynthStateAware, public SynthParamChecker
+class Synth : public SynthParamListener, public SynthStateAware, public SynthParamChecker, public SynthMenuListener
 {
 public:
     Synth(void);
@@ -37,8 +42,19 @@ public:
 
     void setSynthState(SynthState* sState) {
         SynthStateAware::setSynthState(sState);
-        init();
+        init(sState);
     }
+
+
+#ifdef CVIN
+    void setCVIn(CVIn * cvin) {
+        this->cvin = cvin;
+    }
+
+    void setVisualInfo(VisualInfo *visualInfo) {
+        this->visualInfo = visualInfo;
+    }
+#endif
 
     void noteOn(int timbre, char note, char velocity);
     void noteOff(int timbre, char note);
@@ -156,6 +172,17 @@ public:
     void setScalaEnable(bool enable);
     void setScalaScale(int scaleNumber);
 
+    void setCurrentInstrument(int value);
+
+    // SynthMenuListener
+    void newSynthMode(FullState* fullState) {};
+    void menuBack(enum MenuState  oldMenuState, FullState* fullState) {};
+    void newMenuState(FullState* fullState) {};
+    void newMenuSelect(FullState* fullState);
+
+    void updateGlobalTuningFromConfig();
+
+
 #ifdef DEBUG
     void debugVoice();
     void showCycles();
@@ -164,7 +191,7 @@ public:
 
 private:
     // Called by setSynthState
-    void init();
+    void init(SynthState* sState);
 
     float ratioTimbre;
     float ratioTimbreLP;
@@ -181,6 +208,13 @@ private:
     // gate
     float currentGate;
 
+
+#ifdef CVIN
+    bool cvin12Ready ;
+    bool cvin34Ready ;
+    VisualInfo *visualInfo;
+    CVIn* cvin;
+#endif
 };
 
 

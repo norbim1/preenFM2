@@ -86,11 +86,12 @@ enum AllControlChange {
     CC_ENV_ATK_ALL_MODULATOR = 62,
     CC_ENV_REL_ALL_MODULATOR,
     CC_HOLD_PEDAL = 64,
+    CC_ENV_ATK_OP1,
     CC_FILTER_TYPE = 70,
     CC_FILTER_PARAM1,
     CC_FILTER_PARAM2,
     CC_FILTER_GAIN,
-    CC_ENV_ATK_OP1,
+    CC_MPE_SLIDE_CC74,
     CC_ENV_ATK_OP2,
     CC_ENV_ATK_OP3,
     CC_ENV_ATK_OP4,
@@ -123,7 +124,7 @@ enum AllControlChange {
 	CC_MATRIX_SOURCE_CC2,
 	CC_MATRIX_SOURCE_CC3,
 	CC_MATRIX_SOURCE_CC4,
-    // 119 is empty
+    CC_CURRENT_INSTRUMENT,
     CC_ALL_SOUND_OFF = 120,
     CC_ALL_NOTES_OFF = 123,
     CC_OMNI_OFF = 124,
@@ -172,7 +173,7 @@ public:
     void flushMidiOut();
     void playNote(int timbre, char note, char velocity) {}
     void stopNote(int timbre, char note) {}
-    void newTimbre(int timbre) {}
+    void newTimbre(int timbre) { currentTimbre = timbre; }
     void sendCurrentPatchAsNrpns(int timbre);
 
     // Sysex sender
@@ -191,6 +192,7 @@ private:
     Synth* synth;
     VisualInfo *visualInfo;
     Storage* storage;
+    int currentTimbre;
     struct MidiEvent toSend ;
     struct MidiEvent lastSentCC;
     struct Nrpn currentNrpn[NUMBER_OF_TIMBRES];

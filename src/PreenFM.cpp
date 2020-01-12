@@ -30,8 +30,11 @@
 #include "MidiDecoder.h"
 #include "Storage.h"
 #include "Hexter.h"
+#include "CVIn.h"
 
 #include "ff.h"
+
+
 
 
 SynthState         synthState __attribute__ ((section(".ccmnoload")));
@@ -45,9 +48,9 @@ MidiDecoder        midiDecoder;
 Encoders           encoders ;
 Storage            usbKey ;
 Hexter             hexter;
-
-
-
+#ifdef CVIN
+CVIn               cvin;
+#endif
 int spiState  __attribute__ ((section(".ccmnoload")));
 
 void fillSoundBuffer() {
@@ -58,10 +61,9 @@ void fillSoundBuffer() {
     }
 }
 
-const char* line1 = "PreenFM2 v"PFM2_VERSION" "OVERCLOCK_STRING;
+const char* line1 = "PreenFM2 v"PFM2_VERSION""CVIN_STRING""OVERCLOCK_STRING;
 const char* line2 = "     By Xavier Hosxe";
 const char* line3 = "(F4Disc port by NM) ";
-
 
 void setup() {
     lcd.begin(20, 4);
@@ -113,6 +115,11 @@ void setup() {
     fmDisplay.setSynthState(&synthState);
     midiDecoder.setSynthState(&synthState);
     midiDecoder.setVisualInfo(&fmDisplay);
+#ifdef CVIN
+    // synth needs visualInfo for CV gate
+    synth.setVisualInfo(&fmDisplay);
+    synth.setCVIn(&cvin);
+#endif
     midiDecoder.setSynth(&synth);
     midiDecoder.setStorage(&usbKey);
 
@@ -128,7 +135,10 @@ void setup() {
     synthState.insertParamListener(&fmDisplay);
     synthState.insertParamListener(&midiDecoder);
     synthState.insertParamListener(&synth);
+
+    // Synth must be second to ba called first (to update global tuning before it's displayed)
     synthState.insertMenuListener(&fmDisplay);
+    synthState.insertMenuListener(&synth);
     // Synth can check and modify param new value
     synthState.insertParamChecker(&synth);
 
@@ -141,6 +151,14 @@ void setup() {
     usbKey.getPatchBank()->setArpeggiatorPartOfThePreset(&synthState.fullState.midiConfigValue[MIDICONFIG_ARPEGGIATOR_IN_PRESET]);
     hexter.setArpeggiatorPartOfThePreset(&synthState.fullState.midiConfigValue[MIDICONFIG_ARPEGGIATOR_IN_PRESET]);
     usbKey.getConfigurationFile()->loadConfig(synthState.fullState.midiConfigValue);
+
+    // initialize global tuning
+    synth.updateGlobalTuningFromConfig();
+#ifdef CVIN
+    // Init formula with value
+    cvin.updateFormula(synthState.fullState.midiConfigValue[MIDICONFIG_CVIN_A2], synthState.fullState.midiConfigValue[MIDICONFIG_CVIN_A6]);
+#endif
+
     usbKey.getConfigurationFile()->loadScalaConfig(&synthState.fullState.scalaScaleConfig);
 
     // Load scala scales if enabled
@@ -158,6 +176,7 @@ void setup() {
     ((OneSynthParams*)synth.getTimbre(0)->getParamRaw())->env4b.releaseTime = 0.8f;
 
     bool displayline1 = true;
+    bool displayline3 = true;
     for (int r=0; r<20; r++) {
     	if (r<10 && (r & 0x1) == 0) {
 			GPIO_SetBits(GPIOD, LEDOPIN);
@@ -293,11 +312,18 @@ void setup() {
     }
 
 
+    // Init ADC
+#ifdef CVIN
+    ADC_Config(cvin.getADCBufferAdress());
+#endif
+
+
 }
 
 unsigned int ledTimer = 0;
 unsigned int encoderTimer = 0;
 unsigned int tempoTimer = 0;
+unsigned int ADCTimer = 0;
 
 bool ledOn = false;
 
@@ -343,6 +369,25 @@ void loop(void) {
          fillSoundBuffer();
          synthState.tempoClick();
          fmDisplay.tempoClick();
+
+
+#ifdef CVIN
+        if (synthState.fullState.currentMenuItem->menuState == MENU_CONFIG_SETTINGS &&
+                (synthState.fullState.menuSelect == MIDICONFIG_CVIN_A2 || synthState.fullState.menuSelect == MIDICONFIG_CVIN_A6)) {
+            if (cvin.getGate() > (synthState.fullState.midiConfigValue[MIDICONFIG_CV_GATE] * 9 + 62)) {
+                lcd.setCursor(1, 3);
+                lcd.print("(");
+                lcd.print(cvin.getMidiNote());
+                lcd.print(") ");
+                lcd.setCursor(9, 3);
+                lcd.print(": ");
+                lcd.print(cvin.getMidiNote1024());
+                lcd.print(" ");
+            }
+        }
+#endif
+
+
          tempoTimer = newPreenTimer;
      }
 

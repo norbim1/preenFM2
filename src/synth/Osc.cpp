@@ -151,7 +151,9 @@ struct WaveTable waveTables[NUMBER_OF_WAVETABLES] __attribute__ ((section(".ccm"
 };
 
 
-void Osc::init(struct OscillatorParams *oscParams, DestinationEnum df) {
+void Osc::init(SynthState* sState, struct OscillatorParams *oscParams, DestinationEnum df) {
+    
+    this->synthState = sState;
     silence[0] = 0;
 
     this->destFreq = df;
@@ -173,12 +175,12 @@ void Osc::init(struct OscillatorParams *oscParams, DestinationEnum df) {
     }
 }
 
-void Osc::newNote(struct OscState* oscState, int note) {
 
-    oscState->index = waveTables[(int) oscillator->shape].max * .25f;
+#ifdef CVIN
+void Osc::updateFreqFromCv(struct OscState* oscState, float freq) {
     switch ((int)oscillator->frequencyType) {
     case OSC_FT_KEYBOARD:
-        oscState->mainFrequency = frequencyToUse[note] * oscillator->frequencyMul * (1.0f + oscillator->detune * .05f);
+        oscState->mainFrequency =  freq * oscillator->frequencyMul * (1.0f + oscillator->detune * .05f);
         break;
     case OSC_FT_FIXE:
         oscState->mainFrequency = oscillator->frequencyMul* 1000.0f + oscillator->detune * 100.0f;
@@ -187,7 +189,53 @@ void Osc::newNote(struct OscState* oscState, int note) {
         }
         break;
     case OSC_FT_KEYHZ:
-        oscState->mainFrequency = frequencyToUse[note] * oscillator->frequencyMul + oscillator->detune;
+        oscState->mainFrequency = freq * oscillator->frequencyMul + oscillator->detune;
+        break;
+    }
+}
+
+
+void Osc::newNoteFromCv(struct OscState* oscState, float freq) {
+
+    oscState->index = waveTables[(int) oscillator->shape].max * .25f;
+    switch ((int)oscillator->frequencyType) {
+    case OSC_FT_KEYBOARD:
+        oscState->mainFrequency =  freq * oscillator->frequencyMul * (1.0f + oscillator->detune * .05f);
+        break;
+    case OSC_FT_FIXE:
+        oscState->mainFrequency = oscillator->frequencyMul* 1000.0f + oscillator->detune * 100.0f;
+        if (oscState->mainFrequency < 0.0f) {
+            oscState->mainFrequency = 0.0f;
+        }
+        break;
+    case OSC_FT_KEYHZ:
+        oscState->mainFrequency = freq * oscillator->frequencyMul + oscillator->detune;
+        break;
+    }
+    oscState->frequency = oscState->mainFrequency;
+}
+#endif
+
+#define INV440 0.002272727272727f
+
+void Osc::newNote(struct OscState* oscState, int note) {
+
+    oscState->index = waveTables[(int) oscillator->shape].max * .25f;
+    switch ((int)oscillator->frequencyType) {
+    case OSC_FT_KEYBOARD:
+        oscState->mainFrequency = frequencyToUse[note] * oscillator->frequencyMul * (1.0f + oscillator->detune * .05f);
+        oscState->mainFrequency *= (INV440 * synthState->fullState.globalTuning);
+        break;
+    case OSC_FT_FIXE:
+        oscState->mainFrequency = oscillator->frequencyMul* 1000.0f + oscillator->detune * 100.0f;
+        if (oscState->mainFrequency < 0.0f) {
+            oscState->mainFrequency = 0.0f;
+        }
+        break;
+    case OSC_FT_KEYHZ:
+        oscState->mainFrequency = frequencyToUse[note] * oscillator->frequencyMul;
+        oscState->mainFrequency *= (INV440 * synthState->fullState.globalTuning);
+        oscState->mainFrequency += oscillator->detune;
         break;
     }
     oscState->frequency = oscState->mainFrequency;
@@ -198,12 +246,15 @@ void Osc::glideToNote(struct OscState* oscState, int note) {
     switch ((int)oscillator->frequencyType) {
     case OSC_FT_KEYBOARD:
         oscState->nextFrequency = frequencyToUse[note] *  oscillator->frequencyMul  * (1.0f + oscillator->detune * .05f);
+        oscState->nextFrequency *= (INV440 * synthState->fullState.globalTuning);
         break;
     case OSC_FT_FIXE:
         oscState->nextFrequency = oscState->mainFrequency;
         break;
     case OSC_FT_KEYHZ:
-        oscState->nextFrequency = frequencyToUse[note] * oscillator->frequencyMul   + oscillator->detune;
+        oscState->nextFrequency = frequencyToUse[note] * oscillator->frequencyMul;
+        oscState->nextFrequency *= (INV440 * synthState->fullState.globalTuning);
+        oscState->nextFrequency =+ oscillator->detune;
         break;
     }
     oscState->fromFrequency = oscState->mainFrequency;

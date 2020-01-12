@@ -21,6 +21,8 @@
 #include <stdint.h>
 
 // #define DEBUG 1
+// #define CVINDEBUG 1
+
 
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
@@ -466,6 +468,13 @@ enum SourceEnum {
     MATRIX_SOURCE_CC4,
     MATRIX_SOURCE_NOTE2,
     MATRIX_SOURCE_BREATH,
+#ifdef CVIN
+    MATRIX_SOURCE_CVIN1,
+    MATRIX_SOURCE_CVIN2,
+    MATRIX_SOURCE_CVIN3,
+    MATRIX_SOURCE_CVIN4,
+#endif
+    MATRIX_SOURCE_MPESLIDE,
     MATRIX_SOURCE_MAX
 };
 

@@ -49,7 +49,7 @@ class Timbre {
 public:
     Timbre();
     virtual ~Timbre();
-    void init(int timbreNumber);
+    void init(int timbreNumber, SynthState* sState);
     void setVoiceNumber(int v, int n);
     void initVoicePointer(int n, Voice* voice);
     void prepareForNextBlock();
@@ -59,12 +59,12 @@ public:
     void afterNewParamsLoad();
     void setNewValue(int index, struct ParameterDisplay* param, float newValue);
     void setNewEffecParam(int encoder);
-    void recomputeBPValues();
+    void recomputeBPValues(float q, float param1Square);
     int getSeqStepValue(int whichStepSeq, int step);
     void setSeqStepValue(int whichStepSeq, int step, int value);
     // Arpegiator
-    void arpeggiatorNoteOn(char note, char velocity);
-    void arpeggiatorNoteOff(char note);
+    void arpeggiatorNoteOn(uint8_t note, uint8_t velocity);
+    void arpeggiatorNoteOff(uint8_t note);
     void StartArpeggio();
     void StepArpeggio();
     void Start();
@@ -76,12 +76,17 @@ public:
     void resetArpeggiator();
     uint16_t getArpeggiatorPattern() const;
 
-    void noteOn(char note, char velocity);
-    void noteOff(char note);
+    void noteOn(uint8_t note, uint8_t velocity);
+    void noteOff(uint8_t note);
 
-    void preenNoteOn(char note, char velocity);
+    void preenNoteOn(uint8_t note, uint8_t velocity);
     inline void preenNoteOnUpdateMatrix(int voiceToUse, int note, int velocity);
-    void preenNoteOff(char note);
+#ifdef CVIN
+    void propagateCvFreq(uint8_t note);
+    void setCvFrequency(float freq) { this->cvFrequency = freq; }
+    float getCvFrequency() { return this->cvFrequency; };
+#endif
+    void preenNoteOff(uint8_t note);
     void numberOfVoicesChanged() {
         if (params.engine1.numberOfVoice > 0) {
             numberOfVoiceInverse = 1.0f / params.engine1.numberOfVoice;
@@ -163,7 +168,9 @@ private:
     Voice *voices[MAX_NUMBER_OF_VOICES];
     bool holdPedal;
     int8_t lastPlayedNote;
-
+#ifdef CVIN
+    float cvFrequency;
+#endif
 
     // 6 oscillators Max
     Osc osc1;
@@ -221,17 +228,14 @@ private:
     uint8_t recording_;
     // Low pass filter
     float fxParam1, fxParam2, fxParam3;
-    float fxParamA1, fxParamA2;
-    float fxParamB1, fxParamB2;
-    float v0L, v1L;
-    float v0R, v1R;
-    float fxPhase;
+    float v0L, v1L, v2L, v3L, v4L, v5L, v6L, v7L, v8L;
+    float v0R, v1R, v2R, v3R, v4R, v5R, v6R, v7R, v8R;
+   	float fxParamA1, fxParamA2, fxParamB2;
     // save float fxParam1 to detect modification
     float fxParam1PlusMatrix;
-
+    float lastVelocity;
     // lfoUsed
     uint8_t lfoUSed[NUMBER_OF_LFO];
-
 };
 
 #endif /* TIMBRE_H_ */

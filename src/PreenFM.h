@@ -29,7 +29,7 @@
 #ifndef OVERCLOCK
 #define OVERCLOCK_STRING
 #else
-#define OVERCLOCK_STRING "o"
+#define OVERCLOCK_STRING " o"
 #endif
 
 #define LEDGPIN GPIO_Pin_12
@@ -39,6 +39,20 @@
 
 #define SAMPLE_BUFFER_SIZE 64 // -> 64 L/R (2*32) bit samples
 extern int sample_buffer[SAMPLE_BUFFER_SIZE]; // sample buffer used for DMA
+#ifndef CVIN
+
+#define CVIN_STRING ""
+
+#else
+
+#define CVIN_STRING "_cv"
+extern int TIM2PerSeq;
+void ADC_Config(uint32_t adcBufferAdress);
+
+#endif
+
+
+//#define LEDPIN GPIO_Pin_6
 
 
 extern int spiState ;
