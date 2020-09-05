@@ -24,7 +24,7 @@
 
 #include "hardware/dwt.h"
 
-#ifdef DEBUG
+#ifdef DEBUG_CPU_USAGE
 CYCCNT_buffer cycles_all;
 #endif
 
@@ -68,6 +68,7 @@ void Synth::init(SynthState* sState) {
 #ifdef CVIN
     cvin12Ready = true;
     cvin34Ready = true;
+    triggeredTimbre = 0;
 #endif
 
 }
@@ -129,7 +130,7 @@ bool Synth::isPlaying() {
 }
 
 
-#ifdef DEBUG
+#ifdef DEBUG_CPU_USAGE
 int cptDisplay = 0;
 float totalCycles = 0;
 #endif
@@ -207,6 +208,15 @@ void Synth::buildNewSampleBlock() {
                 timbreToTrigger[timbreIndex++] = 2;
                 timbreToTrigger[timbreIndex++] = 3;
             break;
+            case 8:
+                timbreToTrigger[timbreIndex++] = triggeredTimbre;
+            break;
+            case 9:
+                timbreToTrigger[timbreIndex++] = (int)((noise[0] + 1.0f) * 2.0f);
+            break;
+            case 10:
+                timbreToTrigger[timbreIndex++] = (int)((cvin->getCvin3() + 1.0f) * 2.0f);
+            break;
         }
 
         // CV_GATE from 0 to 100 => cvGate from 62 to 962. 
@@ -219,6 +229,11 @@ void Synth::buildNewSampleBlock() {
                     timbres[timbreToTrigger[tk]].setCvFrequency(cvin->getFrequency());
                     timbres[timbreToTrigger[tk]].noteOn(128, 127);
                     visualInfo->noteOn(timbreToTrigger[tk], true);
+                }
+                // inc timbre triggerTimbre if we are in Seq mode
+                if (unlikely(cvinstrument == 8)) {
+                    triggeredTimbre++;
+                    triggeredTimbre &= 0x3;
                 }
             }
         } else {
@@ -282,7 +297,7 @@ void Synth::buildNewSampleBlock() {
 
     CYCLE_MEASURE_END();
 
-#ifdef DEBUG
+#ifdef DEBUG_CPU_USAGE
     if (cptDisplay++ > 500) {
         totalCycles += cycles_all.remove();
 
@@ -437,6 +452,7 @@ void Synth::newParamValue(int timbre, int currentRow, int encoder, ParameterDisp
         switch (encoder) {
         case ENCODER_ENGINE_ALGO:
             fixMaxNumberOfVoices(timbre);
+            timbres[timbre].initADSRloop();
             break;
         case ENCODER_ENGINE_VOICE:
             if (newValue > oldValue) {
@@ -518,8 +534,7 @@ void Synth::newParamValue(int timbre, int currentRow, int encoder, ParameterDisp
         break;
     case ROW_MATRIX_FIRST ... ROW_MATRIX_LAST:
         timbres[timbre].verifyLfoUsed(encoder, oldValue, newValue);
-        if (encoder == ENCODER_MATRIX_DEST) {
-            // Reset old destination
+        if (encoder == ENCODER_MATRIX_DEST1 || encoder == ENCODER_MATRIX_DEST2) {
             timbres[timbre].resetMatrixDestination(oldValue);
         }
         break;

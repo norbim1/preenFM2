@@ -121,10 +121,14 @@
 /******************************************************************************/
 
 /************************* PLL Parameters *************************************/
-#ifndef OVERCLOCK
 
 /* PLL_VCO = (HSE_VALUE or HSI_VALUE / PLL_M) * PLL_N */
 // PreenFM2 STM32F407Discovery Quartz frequency 8Mhz
+#define PLL_M      8
+// PreenFM2 Quartz frequency 12Mhz
+// We run the STM32F405 at 192Mhz 
+#ifdef UNDEFINED_BECAUSE_ORVERCLOCK_IS_THE_NEW_STANDARD
+
 #define PLL_M      8
 #define PLL_N      336
 
@@ -133,8 +137,8 @@
 
 /* USB OTG FS, SDIO and RNG Clock =  PLL_VCO / PLLQ */
 #define PLL_Q      7
+#endif
 
-#else
 
 /* PLL_VCO = (HSE_VALUE or HSI_VALUE / PLL_M) * PLL_N */
 /* 240 MHz overclocked */
@@ -147,7 +151,6 @@
 /* USB OTG FS, SDIO and RNG Clock =  PLL_VCO / PLLQ */
 #define PLL_Q      10 //9 //8
 
-#endif
 
 /******************************************************************************/
 

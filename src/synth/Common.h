@@ -338,8 +338,8 @@ struct OscillatorParams {
 struct MatrixRowParams {
     float source;
     float mul;
-    float destination;
-    float not_used;
+    float dest1;
+    float dest2;
 };
 
 struct LfoParams {
@@ -475,6 +475,7 @@ enum SourceEnum {
     MATRIX_SOURCE_CVIN4,
 #endif
     MATRIX_SOURCE_MPESLIDE,
+    MATRIX_SOURCE_RANDOM,
     MATRIX_SOURCE_MAX
 };
 
@@ -528,6 +529,8 @@ enum DestinationEnum {
     ALL_ENV_ATTACK_MODULATOR,
     ALL_ENV_DECAY_MODULATOR,
     ALL_ENV_RELEASE_MODULATOR,
+    SEQ1_START,
+    SEQ2_START,
     DESTINATION_MAX
 };
 

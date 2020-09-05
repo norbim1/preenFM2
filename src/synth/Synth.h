@@ -214,6 +214,7 @@ private:
     bool cvin34Ready ;
     VisualInfo *visualInfo;
     CVIn* cvin;
+    int triggeredTimbre;
 #endif
 };
 

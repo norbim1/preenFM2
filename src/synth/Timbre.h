@@ -56,6 +56,7 @@ public:
     void cleanNextBlock();
     void prepareMatrixForNewBlock();
     void fxAfterBlock(float ratioTimbres);
+    void initADSRloop();
     void afterNewParamsLoad();
     void setNewValue(int index, struct ParameterDisplay* param, float newValue);
     void setNewEffecParam(int encoder);
@@ -139,9 +140,14 @@ public:
     // Midi Note Scale
     void updateMidiNoteScale(int scale);
 
-    // Do matrix use LFO
+    // Does the matrix use LFOs
     bool isLfoUsed(int lfo) {
         return  lfoUSed[lfo] > 0;
+    }
+
+    /* Used in fxAfterBlock if different from .5f */
+    void setLeftRightBalance(float leftRightBalance) {
+        this->leftRightBalance = leftRightBalance;
     }
 
 private:
@@ -167,7 +173,7 @@ private:
     float midiPan;
     Voice *voices[MAX_NUMBER_OF_VOICES];
     bool holdPedal;
-    int8_t lastPlayedNote;
+    uint8_t lastPlayedVoiceNum;
 #ifdef CVIN
     float cvFrequency;
 #endif
@@ -214,7 +220,6 @@ private:
     //    uint8_t pattern_;
     //
 
-
     uint8_t running_;
     uint8_t latch_;
     uint8_t tick_;
@@ -236,6 +241,11 @@ private:
     float lastVelocity;
     // lfoUsed
     uint8_t lfoUSed[NUMBER_OF_LFO];
+    // seqStartUsed
+    uint8_t seqStartUsed[NUMBER_OF_LFO_STEP];
+    // Left right balance
+    float leftRightBalance;
+
 };
 
 #endif /* TIMBRE_H_ */
